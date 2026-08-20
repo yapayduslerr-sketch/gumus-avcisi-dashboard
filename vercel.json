@@ -3,5 +3,11 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm exec vite build",
   "outputDirectory": "dist/public",
+  "crons": [
+    {
+      "path": "/api/cron/update-market-data",
+      "schedule": "0 3 * * *"
+    }
+  ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

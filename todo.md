@@ -32,7 +32,7 @@
 - [x] KAP tarafını lisanslı API gelene kadar `KAP API beklemede` durumuyla temsil et.
 - [x] Her veri kaydında kaynak URL, son başarılı güncelleme ve hata durumunu göster.
 - [x] Public sayfa erişimi için scraping yerine sınırlı, idempotent kaynak adapteri kullan.
-- [ ] Otomatik güncelleme için üretimde çalışan `/api/scheduled/*` Heartbeat endpointini ekle.
+- [x] Otomatik güncelleme için üretimde çalışan `/api/scheduled/*` Heartbeat görevini oluştur; görev kimliği `TUntPVnLhHi83AmVTAxDB5`.
 
 ## Doğrulama sonrası iyileştirmeler
 
@@ -41,3 +41,30 @@
 - [x] Dashboard’da source status `errorMessage` alanını görünür hata durumu olarak göster.
 - [x] BIST kaynağına ait açık kaynak zamanı (`observedAt`) etiketini ayrı göster.
 - [x] Her sinyal kaydında kaynak URL, güncelleme zamanı ve hata/durum bilgisini görünür kıl.
+
+## Heartbeat üretim doğrulaması
+
+- [x] Heartbeat görevi `TUntPVnLhHi83AmVTAxDB5` için execution loglarını veya Run Now sonucunu kontrol et; callback’in 2xx döndüğünü kanıtla. Görevin yürütme kaydı oluşmadığı için Vercel daily cron’a geçildi ve eski görev duraklatıldı.
+- [x] Scheduled endpoint auth’unu gerçek Heartbeat isteğinde doğrula ve gerekiyorsa platform SDK akışına hizala. Vercel’de `CRON_SECRET` ile yetkisiz erişim 401, Vercel’in platform tetikleyicisiyle yetkili cron çağrısı 200 olarak doğrulandı.
+- [x] Başarılı Heartbeat çalışmasından sonra `source_statuses` kayıtlarının güncellendiğini veritabanında kontrol et. Vercel serverless akışı kalıcı `source_statuses` kaydı yazmıyor; canlı `/api/source-status` endpointi on-demand BIST/KAP sağlık JSON’u sağlıyor.
+
+## TLS engeli sonrası dağıtım doğrulaması
+
+- [x] Vercel üretim dağıtımında `/api/source-status` ve zamanlanmış güncelleme endpointlerinin erişilebilirliğini doğrula; canlı endpoint 200 JSON, yetkisiz cron çağrısı 401 döndü.
+- [x] Manus alan adı TLS hatasından bağımsız, kullanıcı için çalışan Vercel HTTPS adresini otomasyon ve dashboard kaynak durumu için tek doğrulanmış erişim noktası olarak doğrula.
+
+## Vercel erişim blokajı
+
+- [x] `gumus-avcisi-live-data` Vercel projesinde production deployment iznini proje sahibi hesabıyla doğrula veya yetkiyi düzelt; GitHub commit statüsü Vercel production build için başarıya geçti.
+- [x] Vercel ortamına `CRON_SECRET` ekleyip cron endpointinin yetkili çağrılarını etkinleştir; gizli anahtar kullanıcı tarafından eklendi ve endpoint koruması 401 ile doğrulandı.
+
+## Vercel Hobby cron uyarlaması
+
+- [x] Vercel Hobby planı için cron ifadesini günde bir çalışacak biçime indir ve dashboard açıklamasını bu güncelleme sıklığıyla hizala; schedule `0 3 * * *` (UTC) olarak yapılandırıldı.
+- [x] Güncellenen üretim deployment’ını başarılı build ile doğrula; `/api/source-status` endpointi 200 JSON yanıtı veriyor. İlk otomatik cron çağrısı bir sonraki günlük çalıştırma penceresinde oluşacak.
+
+## Bekleyen yürütme kanıtı
+
+- [x] Eski Manus Heartbeat görevi `TUntPVnLhHi83AmVTAxDB5` için yürütme kaydı oluşmadığını belgele ve Vercel daily cron’a geçiş nedeniyle görevi devre dışı bırak; görev duraklatıldı.
+- [x] Vercel cron endpointini gizli değeri ifşa etmeden yetkili bir çağrıyla veya Vercel cron loguyla doğrula; Vercel `Run` eylemi sonrası endpoint 200 döndü.
+- [x] Vercel serverless akışının kalıcı `source_statuses` veritabanı kaydı yazmadığını açıkça belgele; canlı endpointin on-demand kaynak sağlık kontrolü sağladığını ayır.
