@@ -121,7 +121,7 @@
 - [x] Özgün Gümüş Avcısı tasarım diliyle mobil odaklı Ana Sayfa, Sinyaller, Piyasalar ve KAP çalışma alanlarını ekle; üçüncü taraf ürünün görsel kimliğini veya metinlerini kopyalama.
 - [x] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
 - [x] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
-- [ ] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma.
+- [x] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma. X Pro sonuçları demo/sentetik etiketi, provider/gözlem zamanı ve CSV uyarı sütunuyla ayrı tutulur.
 - [ ] Sembol detay grafiğini gerçek sembol bazlı BIST OHLCV adapterine bağla; mum, hacim, SMA(10/20/50), kaynak/başarı/hata zamanını göster. Grafik bileşeni hazırdır ancak lisanslı BIST OHLCV erişimi olmadığından `bars` şu an boş bekleme durumundadır.
 - [x] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru. XU100 kartı kaynak/gözlem/fiyat bağlı değil ayrımını, çoklu-varlık kartları ise kaynaklı veya kapsam bekler durumunu gösterir.
 - [x] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
@@ -182,3 +182,5 @@
 - [x] X Pro motorları için demo ayrımı, skor açıklanabilirliği, filtreleme ve veri bütünlüğünü kapsayan Vitest testleri ile mobil/production doğrulamasını tamamla.
 - [x] Ana araştırma masasından X Pro çalışma alanına açık ve erişilebilir geçiş ekle; çalışma adresi ayrımını koru.
 - [x] “Gümüş Avcısı X Pro nasıl çalışır?” metodoloji görünümünde veri → filtre → teknik → momentum → kalite → değerleme → olay → risk → Early Score → sıralama zincirini ve ağırlıkları açıkla.
+- [x] X Pro dashboardunda `/api/xpro-overview` için ayrı yüklenme, istek hatası ve veri yok durumlarını göster; bunları filtre boş durumundan ayır.
+- [x] Filtre sonucu boş olduğunda arama terimi, Quality/Early/Risk eşikleri ve veri eksikliği/istek hatası bağlamına göre neden açıklaması üret ve görünür kıl.

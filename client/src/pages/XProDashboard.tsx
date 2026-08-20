@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleAlert,
   Database,
+  Download,
   Filter,
   Gauge,
   History,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { TechnicalChartPanel } from "@/components/TechnicalChartPanel";
 import { readXProFavorites, toggleXProFavorite, writeXProFavorites, type XProFavorite } from "@/lib/xproFavorites";
+import { buildXProResultsCsv } from "@/lib/xproExport";
 
 type ScoreFactor = { key: string; label: string; points: number; maximumPoints: number; detail: string; direction: "BOOST" | "DRAG" | "NEUTRAL" };
 type ScoreProfile = { qualityScore: number | null; earlyScore: number | null; opportunityScore: number | null; riskScore: number | null; riskLevel: string; isEarlyCandidate: boolean; qualityFactors: ScoreFactor[]; earlyFactors: ScoreFactor[]; riskFactors: ScoreFactor[]; blockers: string[]; indicators: { close: number | null; sma20: number | null; sma50: number | null; sma200: number | null; rsi14: number | null; relativeVolume: number | null; atrPercent: number | null; momentum20Percent: number | null; distanceTo52WeekHighPercent: number | null } };
@@ -45,6 +47,7 @@ export default function XProDashboard() {
   const [factorTab, setFactorTab] = useState<"quality" | "early" | "risk">("quality");
   const [chartRange, setChartRange] = useState<"1D" | "5D" | "1M" | "3M" | "6M" | "1Y" | "5Y">("1Y");
   const [favorites, setFavorites] = useState<XProFavorite[]>(() => readXProFavorites());
+  const [sortBy, setSortBy] = useState<"opportunity" | "quality" | "early" | "risk">("opportunity");
 
   const loadOverview = async () => {
     setLoading(true);
@@ -71,7 +74,11 @@ export default function XProDashboard() {
     const profile = row.scores;
     const passes = (profile.qualityScore ?? -1) >= minimumQuality && (profile.earlyScore ?? -1) >= minimumEarly && (profile.riskScore ?? 101) <= maximumRisk;
     return matchesSearch && passes;
-  }), [rows, search, minimumQuality, minimumEarly, maximumRisk]);
+  }).sort((left, right) => {
+    const leftValue = sortBy === "quality" ? left.scores.qualityScore ?? -1 : sortBy === "early" ? left.scores.earlyScore ?? -1 : sortBy === "risk" ? -(left.scores.riskScore ?? 101) : left.scores.opportunityScore ?? -1;
+    const rightValue = sortBy === "quality" ? right.scores.qualityScore ?? -1 : sortBy === "early" ? right.scores.earlyScore ?? -1 : sortBy === "risk" ? -(right.scores.riskScore ?? 101) : right.scores.opportunityScore ?? -1;
+    return rightValue - leftValue;
+  }), [rows, search, minimumQuality, minimumEarly, maximumRisk, sortBy]);
   const selected = rows.find((row) => row.symbol === selectedSymbol) ?? rows[0] ?? null;
   const factors = selected ? factorTab === "quality" ? selected.scores.qualityFactors : factorTab === "early" ? selected.scores.earlyFactors : selected.scores.riskFactors : [];
   const earlyRows = rows.filter((row) => row.scores.isEarlyCandidate);
@@ -79,11 +86,32 @@ export default function XProDashboard() {
   const chartBarsByRange = { "1D": 1, "5D": 5, "1M": 21, "3M": 63, "6M": 126, "1Y": 252, "5Y": 1260 } as const;
   const selectedChartBars = selected ? selected.candles.slice(-chartBarsByRange[chartRange]) : [];
   const isFavorite = selected ? favorites.some((item) => item.symbol === selected.symbol) : false;
+  const resultState = useMemo(() => {
+    if (loading) return { title: "Demo provider yükleniyor", detail: "Sağlayıcı durumu ve sentetik örnekler güvenli biçimde getiriliyor." };
+    if (error) return { title: "X Pro verisi alınamadı", detail: `${error} Yenile ile tekrar deneyin; hata devam ederse aday sonucu üretilmez.` };
+    if (!rows.length) return { title: "Provider taranabilir kayıt döndürmedi", detail: "Aktif provider için doğrulanmış gözlem yok. Bu durumda X Pro aday veya fiyat üretmez." };
+    if (filteredRows.length) return null;
+    const term = search.trim();
+    const termMatches = term ? rows.filter((row) => `${row.symbol} ${row.companyName} ${row.sector}`.toLocaleUpperCase("tr-TR").includes(term.toLocaleUpperCase("tr-TR"))) : rows;
+    if (!termMatches.length) return { title: "Arama sonucu yok", detail: `“${term}” araması demo sembol veya senaryo adlarıyla eşleşmedi. Arama metnini kaldırın ya da farklı bir ifade deneyin.` };
+    const incomplete = termMatches.filter((row) => row.scores.qualityScore === null || row.scores.earlyScore === null || row.scores.riskScore === null);
+    if (incomplete.length === termMatches.length) return { title: "Skor üretmek için veri yetersiz", detail: "Eşleşen kayıtlarda gerekli OHLCV tarihçesi veya kaynak doğrulaması eksik. X Pro bu durumda aday üretmez." };
+    return { title: "Seçili eşiklerde sonuç yok", detail: `Quality ≥ ${minimumQuality}, Early ≥ ${minimumEarly} ve Risk ≤ ${maximumRisk} koşulları aynı anda sağlanmadı. Eşikleri değiştirebilir veya sıralamayı güncelleyebilirsiniz.` };
+  }, [loading, error, rows, filteredRows.length, search, minimumQuality, minimumEarly, maximumRisk]);
   const toggleFavorite = () => {
     if (!selected) return;
     const next = toggleXProFavorite(favorites, selected);
     setFavorites(next);
     writeXProFavorites(next);
+  };
+  const downloadResults = () => {
+    const content = buildXProResultsCsv(filteredRows.map((row) => ({ symbol: row.symbol, dataMode: row.dataMode, sourceLabel: row.sourceLabel, observedAt: row.observedAt, qualityScore: row.scores.qualityScore, earlyScore: row.scores.earlyScore, riskScore: row.scores.riskScore, opportunityScore: row.scores.opportunityScore })));
+    const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "gumus-avcisi-xpro-demo-sonuclari.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   return <main className="min-h-screen bg-[#0b100d] text-[#eef4ed] selection:bg-[#86e49a]/25">
@@ -98,6 +126,8 @@ export default function XProDashboard() {
         <aside className="rounded-2xl border border-[#edca72]/30 bg-[#201b10] p-5"><div className="flex items-start justify-between gap-3"><div><p className="data-label text-[#f0d486]">VERİ DURUMU</p><h2 className="mt-2 text-xl font-semibold text-white">Canlı bağlantı yok</h2></div><Database className="h-5 w-5 text-[#f0d486]"/></div><p className="mt-4 text-xs leading-5 text-[#dccb96]">{overview?.provider.detail ?? "Demo provider yükleniyor."}</p><div className="mt-4 grid grid-cols-2 gap-2 border-t border-[#edca72]/15 pt-4 text-[10px]"><span className="text-[#aa9d76]">Aktif sağlayıcı</span><span className="mono text-right text-white">{overview?.provider.label ?? "—"}</span><span className="text-[#aa9d76]">Gözlem</span><span className="mono text-right text-white">{overview ? new Date(overview.generatedAt).toLocaleString("tr-TR") : "—"}</span></div></aside>
       </section>
 
+      {error ? <section role="alert" className="mb-5 flex items-start gap-3 rounded-xl border border-[#ee9c98]/35 bg-[#ee9c98]/[.08] p-4 text-xs leading-5 text-[#f2c3c0]"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0"/><div><b className="text-white">X Pro overview hatası.</b><br/>{error} Bu hata nedeniyle demo veya canlı aday sonucu gösterilmiyor.</div></section> : null}
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Taranan demo senaryo" value={loading ? "…" : String(rows.length)} detail="Kurgusal sembol" icon={Radar}/>
         <Metric label="Erken aday" value={loading ? "…" : String(earlyRows.length)} detail="Eşikler birlikte sağlanır" icon={Sparkles}/>
@@ -107,9 +137,9 @@ export default function XProDashboard() {
 
       <section className="mt-8 grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-5">
-          <section id="xpro-screen" className="rounded-2xl border border-white/12 bg-[#111713] p-4 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label">X PRO TARAMA LABORATUVARI</p><h2 className="serif-title mt-2 text-3xl text-white">Adaylar & erken hareketler</h2></div><span className="mono text-[10px] text-[#9ca89c]">SONUÇLAR · DEMO / SENTETİK</span></div>
-            <div className="mt-5 grid gap-3 rounded-xl border border-white/8 bg-black/15 p-3 lg:grid-cols-[1.3fr_.7fr_.7fr_.7fr]"><label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#829082]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Demo sembol veya senaryo ara" className="h-10 w-full rounded-lg border border-white/10 bg-[#161d18] pl-9 pr-3 text-xs text-white outline-none placeholder:text-[#718071] focus:border-[#86e49a]/45"/></label><RangeControl label="Kalite min." value={minimumQuality} setValue={setMinimumQuality}/><RangeControl label="Early min." value={minimumEarly} setValue={setMinimumEarly}/><RangeControl label="Risk max." value={maximumRisk} setValue={setMaximumRisk}/></div>
-            <div className="mt-4 overflow-x-auto rounded-xl border border-white/10"><table className="min-w-[760px] w-full text-left text-xs"><thead className="bg-white/[.035] text-[9px] uppercase tracking-[.12em] text-[#8e998e]"><tr><th className="px-4 py-3">Sembol</th><th className="px-3 py-3 text-center">Kalite</th><th className="px-3 py-3 text-center">Early</th><th className="px-3 py-3 text-center">Risk</th><th className="px-3 py-3 text-right">Demo fiyat</th><th className="px-4 py-3 text-right">Durum</th></tr></thead><tbody>{filteredRows.length ? filteredRows.map((row) => <tr key={row.symbol} onClick={() => setSelectedSymbol(row.symbol)} className={`cursor-pointer border-t border-white/7 transition hover:bg-white/[.04] ${selected?.symbol === row.symbol ? "bg-[#86e49a]/[.045]" : ""}`}><td className="px-4 py-3"><p className="mono font-semibold text-white">{row.symbol}</p><p className="mt-1 text-[10px] text-[#8e9a8e]">{row.sector}</p></td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(row.scores.qualityScore)}`}>{number(row.scores.qualityScore)}</td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(row.scores.earlyScore)}`}>{number(row.scores.earlyScore)}</td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(100 - (row.scores.riskScore ?? 100))}`}>{number(row.scores.riskScore)}</td><td className="px-3 py-3 text-right"><p className="mono text-white">{number(row.price, 2)}</p><p className={row.changePercent >= 0 ? "mt-1 text-[10px] text-[#86e49a]" : "mt-1 text-[10px] text-[#f19b98]"}>{row.changePercent >= 0 ? "+" : ""}{number(row.changePercent, 2)}%</p></td><td className="px-4 py-3 text-right"><span className={`rounded-md border px-2 py-1 mono text-[9px] ${badge(row.dataMode)}`}>{row.scores.isEarlyCandidate ? "ERKEN ADAY" : "İZLEME"}</span></td></tr>) : <tr><td colSpan={6} className="px-4 py-10 text-center text-[#aab5aa]"><Filter className="mx-auto mb-3 h-5 w-5 text-[#849184]"/>Bu eşiklerde demo satırı yok. Eşikler değiştirildiğinde filtre yeniden çalışır; gerçek veri sonucu üretilmez.</td></tr>}</tbody></table></div>
+          <section id="xpro-screen" className="rounded-2xl border border-white/12 bg-[#111713] p-4 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label">X PRO TARAMA LABORATUVARI</p><h2 className="serif-title mt-2 text-3xl text-white">Adaylar & erken hareketler</h2></div><div className="flex items-center gap-2"><button onClick={downloadResults} className="inline-flex items-center gap-1.5 rounded-lg border border-white/12 bg-white/[.04] px-3 py-2 text-[10px] font-semibold text-[#dfe8df] hover:bg-white/[.09]"><Download size={13}/> CSV</button><span className="mono text-[10px] text-[#9ca89c]">SONUÇLAR · DEMO / SENTETİK</span></div></div>
+            <div className="mt-5 grid gap-3 rounded-xl border border-white/8 bg-black/15 p-3 lg:grid-cols-[1.3fr_.7fr_.7fr_.7fr]"><label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#829082]"/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Demo sembol veya senaryo ara" className="h-10 w-full rounded-lg border border-white/10 bg-[#161d18] pl-9 pr-3 text-xs text-white outline-none placeholder:text-[#718071] focus:border-[#86e49a]/45"/></label><RangeControl label="Kalite min." value={minimumQuality} setValue={setMinimumQuality}/><RangeControl label="Early min." value={minimumEarly} setValue={setMinimumEarly}/><RangeControl label="Risk max." value={maximumRisk} setValue={setMaximumRisk}/></div><div className="mt-3 flex justify-end"><label className="flex items-center gap-2 text-[10px] text-[#9fac9f]">Sırala<select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="rounded-md border border-white/10 bg-[#161d18] px-2 py-1.5 text-[10px] text-white outline-none"><option value="opportunity">Opportunity</option><option value="quality">Quality</option><option value="early">Early</option><option value="risk">Düşük risk</option></select></label></div>{resultState ? <ResultState title={resultState.title} detail={resultState.detail} tone={error ? "error" : loading ? "loading" : "neutral"}/> : null}
+            <div className="mt-3 overflow-x-auto rounded-xl border border-white/10"><table className="min-w-[900px] w-full text-left text-xs"><thead className="bg-white/[.035] text-[9px] uppercase tracking-[.12em] text-[#8e998e]"><tr><th className="px-4 py-3">Sembol / model</th><th className="px-3 py-3 text-center">Kalite</th><th className="px-3 py-3 text-center">Early</th><th className="px-3 py-3 text-center">Risk</th><th className="px-3 py-3 text-right">Demo fiyat</th><th className="px-3 py-3">Kaynak / gözlem</th><th className="px-4 py-3 text-right">Durum</th></tr></thead><tbody>{filteredRows.length ? filteredRows.map((row) => <tr key={row.symbol} onClick={() => setSelectedSymbol(row.symbol)} className={`cursor-pointer border-t border-white/7 transition hover:bg-white/[.04] ${selected?.symbol === row.symbol ? "bg-[#86e49a]/[.045]" : ""}`}><td className="px-4 py-3"><p className="mono font-semibold text-white">{row.symbol}</p><p className="mt-1 text-[10px] text-[#8e9a8e]">XPRO V1 · {row.sector}</p></td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(row.scores.qualityScore)}`}>{number(row.scores.qualityScore)}</td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(row.scores.earlyScore)}`}>{number(row.scores.earlyScore)}</td><td className={`px-3 py-3 text-center mono font-semibold ${scoreTone(100 - (row.scores.riskScore ?? 100))}`}>{number(row.scores.riskScore)}</td><td className="px-3 py-3 text-right"><p className="mono text-white">{number(row.price, 2)}</p><p className={row.changePercent >= 0 ? "mt-1 text-[10px] text-[#86e49a]" : "mt-1 text-[10px] text-[#f19b98]"}>{row.changePercent >= 0 ? "+" : ""}{number(row.changePercent, 2)}%</p></td><td className="px-3 py-3"><p className="text-[9px] text-[#c7b879]">{row.sourceLabel}</p><p className="mt-1 mono text-[8px] text-[#7f8c7f]">{new Date(row.observedAt).toLocaleString("tr-TR")}</p></td><td className="px-4 py-3 text-right"><span className={`rounded-md border px-2 py-1 mono text-[9px] ${badge(row.dataMode)}`}>{row.scores.isEarlyCandidate ? "ERKEN ADAY" : "İZLEME"}</span></td></tr>) : <tr><td colSpan={7} className="px-4 py-10 text-center text-[#aab5aa]"><Filter className="mx-auto mb-3 h-5 w-5 text-[#849184]"/>Bu eşiklerde demo satırı yok. Eşikler değiştirildiğinde filtre yeniden çalışır; gerçek veri sonucu üretilmez.</td></tr>}</tbody></table></div>
           </section>
 
           <section className="grid gap-4 lg:grid-cols-2"><Panel title="Yeni erken adaylar" icon={Sparkles} accent="green"><CandidateList rows={earlyRows} empty="Demo eşikleriyle erken aday oluşmadı. Early Score ile kalite skoru birbirinden ayrıdır."/></Panel><Panel title="Hacim & trend hareketleri" icon={TrendingUp} accent="blue"><CandidateList rows={[...rows].sort((a, b) => (b.scores.earlyScore ?? 0) - (a.scores.earlyScore ?? 0)).slice(0, 3)} empty="Yükleniyor"/></Panel><Panel title="KAP hareketleri" icon={CircleAlert} accent="yellow"><p className="text-xs leading-5 text-[#d4c89e]">Demo olayları gerçek KAP bildirimi değildir ve skora katkı vermez. Lisanslı KAP akışı geldiğinde kaynak URL’si, yayın zamanı ve kategori zorunlu olur.</p><p className="mono mt-4 text-[10px] text-[#f0d486]">DEMO OLAYI · SKOR KATKISI 0</p></Panel><Panel title="Riskli hareketler" icon={AlertTriangle} accent="red"><CandidateList rows={[...rows].sort((a, b) => (b.scores.riskScore ?? 0) - (a.scores.riskScore ?? 0)).slice(0, 3)} empty="Yükleniyor" risk/></Panel></section>
@@ -136,3 +166,4 @@ function RangeControl({ label, value, setValue }: { label: string; value: number
 function Panel({ title, icon: Icon, accent, children }: { title: string; icon: typeof BarChart3; accent: "green" | "blue" | "yellow" | "red"; children: React.ReactNode }) { const tone = accent === "green" ? "text-[#86e49a]" : accent === "blue" ? "text-[#bcdcf4]" : accent === "yellow" ? "text-[#f0d486]" : "text-[#ee9c98]"; return <article className="rounded-2xl border border-white/10 bg-[#111713] p-5"><div className="flex items-center gap-2"><Icon className={`h-4 w-4 ${tone}`}/><h3 className="text-sm font-semibold text-white">{title}</h3></div><div className="mt-4">{children}</div></article>; }
 function CandidateList({ rows, empty, risk = false }: { rows: XProRow[]; empty: string; risk?: boolean }) { return rows.length ? <div className="space-y-2">{rows.map((row) => <div key={row.symbol} className="flex items-center justify-between rounded-lg border border-white/8 bg-black/15 px-3 py-2.5"><div><p className="mono text-xs text-white">{row.symbol}</p><p className="mt-1 text-[9px] text-[#8f9a8f]">{risk ? `Risk ${number(row.scores.riskScore)}` : `Early ${number(row.scores.earlyScore)} · Quality ${number(row.scores.qualityScore)}`}</p></div><ChevronRight className="h-4 w-4 text-[#7f8a7f]"/></div>)}</div> : <p className="text-xs leading-5 text-[#9fac9f]">{empty}</p>; }
 function DetailMetricGroup({ title, entries }: { title: string; entries: [string, string][] }) { return <div className="mt-4 rounded-xl border border-white/8 bg-black/15 p-3"><p className="data-label">{title}</p><div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">{entries.map(([label, value]) => <div key={label} className="flex items-center justify-between gap-2 border-b border-white/[.04] py-1"><span className="text-[9px] text-[#9da89d]">{label}</span><span className="mono text-[9px] text-white">{value}</span></div>)}</div></div>; }
+function ResultState({ title, detail, tone }: { title: string; detail: string; tone: "loading" | "error" | "neutral" }) { const color = tone === "error" ? "border-[#ee9c98]/30 bg-[#ee9c98]/[.06] text-[#f1b3af]" : tone === "loading" ? "border-[#8ab5e3]/25 bg-[#8ab5e3]/[.05] text-[#bedcf1]" : "border-[#edca72]/25 bg-[#edca72]/[.05] text-[#e8d191]"; return <div className={`mt-3 rounded-xl border p-3 ${color}`}><p className="text-[11px] font-semibold">{title}</p><p className="mt-1 text-[10px] leading-5 opacity-85">{detail}</p></div>; }
