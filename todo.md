@@ -52,3 +52,13 @@
 
 - [ ] Vercel üretim dağıtımında `/api/source-status` ve zamanlanmış güncelleme endpointlerinin erişilebilirliğini doğrula.
 - [ ] Manus alan adı TLS hatasından bağımsız, kullanıcı için çalışan Vercel HTTPS adresini otomasyon ve dashboard kaynak durumu için tek doğrulanmış erişim noktası olarak doğrula.
+
+## Vercel erişim blokajı
+
+- [ ] `gumus-avcisi-live-data` Vercel projesinde production deployment iznini proje sahibi hesabıyla doğrula veya yetkiyi düzelt.
+- [ ] Vercel ortamına `CRON_SECRET` ekleyip cron endpointinin yetkili çağrılarını etkinleştir.
+
+## Vercel Hobby cron uyarlaması
+
+- [ ] Vercel Hobby planı için cron ifadesini günde bir çalışacak biçime indir ve dashboard açıklamasını bu güncelleme sıklığıyla hizala.
+- [ ] Güncellenen üretim deployment’ını başarılı build ile doğrula; `/api/source-status` endpointinin JSON yanıtını kontrol et.

@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/update-market-data",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 3 * * *"
     }
   ],
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
