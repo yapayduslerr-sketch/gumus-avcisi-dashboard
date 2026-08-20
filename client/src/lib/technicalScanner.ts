@@ -170,9 +170,12 @@ function bollingerWidth(values: number[], period = 20, offset = 0): number | nul
 export function validateTechnicalDataSet(data: TechnicalDataSet): string | null {
   if (!data.sourceUrl || !/^https:\/\//.test(data.sourceUrl)) return "Kaynak URL’si geçerli değil.";
   if (!data.asOf || Number.isNaN(new Date(data.asOf).getTime())) return "Gözlem zamanı geçerli değil.";
+  if (data.delayMinutes !== null && (!Number.isFinite(data.delayMinutes) || data.delayMinutes < 0)) return "Veri gecikmesi geçerli değil.";
   if (!data.bars.length) return "OHLCV barı yok.";
-  const invalidBar = data.bars.some((bar) => !bar.timestamp || ![bar.open, bar.high, bar.low, bar.close, bar.volume].every(Number.isFinite) || bar.low > bar.high || bar.volume < 0);
-  return invalidBar ? "OHLCV verisi doğrulama kurallarını geçmiyor." : null;
+  const invalidBar = data.bars.some((bar) => !bar.timestamp || Number.isNaN(new Date(bar.timestamp).getTime()) || ![bar.open, bar.high, bar.low, bar.close, bar.volume].every(Number.isFinite) || bar.low > Math.min(bar.open, bar.close) || bar.high < Math.max(bar.open, bar.close) || bar.volume < 0);
+  if (invalidBar) return "OHLCV verisi doğrulama kurallarını geçmiyor.";
+  const outOfOrder = data.bars.some((bar, index) => index > 0 && new Date(bar.timestamp).getTime() <= new Date(data.bars[index - 1].timestamp).getTime());
+  return outOfOrder ? "OHLCV barları artan zaman sırasıyla gelmelidir." : null;
 }
 
 export function calculateTechnicalEvidence(data: TechnicalDataSet): TechnicalEvidence {

@@ -8,11 +8,15 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import XProDashboard from "./pages/XProDashboard";
+import XProMethodology from "./pages/XProMethodology";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/x-pro" component={XProDashboard} />
+      <Route path="/x-pro/methodology" component={XProMethodology} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

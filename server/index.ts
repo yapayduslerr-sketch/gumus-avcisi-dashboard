@@ -6,6 +6,7 @@ import { getSourceStatuses, runScheduledUpdate } from "./dataPipeline";
 import { authenticateRequest } from "./_core/sdk";
 import { probeLicensedAdapter } from "./licensedAdapters";
 import { fetchMultiAssetQuotes, getMultiAssetReadiness } from "./multiAssetAdapter";
+import xProOverviewHandler from "../api/xpro-overview";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +40,10 @@ async function startServer() {
 
   app.get("/api/market-context", async (_req, res) => {
     res.json(await fetchMultiAssetQuotes());
+  });
+
+  app.get("/api/xpro-overview", async (req, res) => {
+    await xProOverviewHandler(req, res);
   });
 
   // This endpoint is deliberately idempotent and ignores request-body fields.

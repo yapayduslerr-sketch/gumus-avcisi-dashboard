@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildChartOverlays, evaluateTechnicalModel, summarizeModelIntersection, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
+import { buildChartOverlays, evaluateTechnicalModel, summarizeModelIntersection, validateTechnicalDataSet, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
 
 function bars(count: number, multiplier = 1): OhlcvBar[] {
   return Array.from({ length: count }, (_, index) => {
@@ -54,5 +54,18 @@ describe("teknik tarama çekirdeği", () => {
     expect(overlays[9]?.sma10).toBe(104.5);
     expect(overlays[19]?.sma20).toBe(109.5);
     expect(overlays[49]?.sma50).toBe(124.5);
+  });
+
+  it("tarih, kronolojik sıra, bar aralığı ve gecikme bütünlüğünü zorunlu tutar", () => {
+    const invalidTimestamp = [{ ...bars(2)[0], timestamp: "tarih-yok" }];
+    expect(validateTechnicalDataSet(dataSet(invalidTimestamp))).toContain("doğrulama");
+
+    const unordered = bars(2).reverse();
+    expect(validateTechnicalDataSet(dataSet(unordered))).toContain("artan zaman");
+
+    const invalidRange = [{ ...bars(1)[0], high: 99 }];
+    expect(validateTechnicalDataSet(dataSet(invalidRange))).toContain("doğrulama");
+
+    expect(validateTechnicalDataSet({ ...dataSet(bars(2)), delayMinutes: -1 })).toContain("gecikmesi");
   });
 });

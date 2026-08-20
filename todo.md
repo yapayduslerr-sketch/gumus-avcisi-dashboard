@@ -125,7 +125,7 @@
 - [ ] Sembol detay grafiğini gerçek sembol bazlı BIST OHLCV adapterine bağla; mum, hacim, SMA(10/20/50), kaynak/başarı/hata zamanını göster. Grafik bileşeni hazırdır ancak lisanslı BIST OHLCV erişimi olmadığından `bars` şu an boş bekleme durumundadır.
 - [x] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru. XU100 kartı kaynak/gözlem/fiyat bağlı değil ayrımını, çoklu-varlık kartları ise kaynaklı veya kapsam bekler durumunu gösterir.
 - [x] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
-- [ ] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut.
+- [x] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut. Favori sembolü, teknik model bağlamı ile piyasa detayında kaynak/gözlem/veri-bekleme ve cihaz notu panellerine bağlandı; hesap-bazlı senkronizasyon ayrı B aşaması olarak etiketlendi.
 - [ ] Lisanslı BIST OHLCV ile KAP bildirimleri bağlandığında tarama sonuçları ve KAP kartlarını yalnızca tarihli, kaynak URL’li ve izlenebilir kayıtlarla doldur.
 - [x] Yeni teknik model hesapları, veri geçerliliği, CSV çıktısı ve boş/veri hatası durumları için Vitest kapsamı ekle; mobil görünüm, TypeScript ve production build doğrulamasını tamamla.
 
@@ -161,3 +161,24 @@
 
 - [x] `manus.space` uzantısı içermeyen geçici TLS önizleme bağlantısını oluştur ve HTTP/TLS erişimini doğrula. Alternatif URL TLS 1.3 ve ana sayfa/API için HTTP 200 döndü.
 - [x] Kullanıcı iletişiminde `manus.space` alan adını çalışma bağlantısı olarak kullanma; kalıcı erişim için yalnızca Vercel URL’sini, geçici doğrulama için alternatif bağlantıyı ayır.
+
+## Gümüş Avcısı X Pro — sağlayıcıdan bağımsız araştırma altyapısı
+
+- [x] Uygulama/API katmanı ile sağlayıcı katmanını ayıran, `mock`, `forinvest` ve `dxfeed` seçimlerini tek sözleşmede yöneten provider adapter kayıt sistemini tasarla.
+- [x] Kaynak belirtilmeden gerçek BIST fiyatı, hacmi veya KAP bildirimi üretmeyen; yalnızca açık `DEMO / SENTETİK — CANLI VERİ BAĞLI DEĞİL` etiketi altında çalışan sandbox veri sözleşmesini oluştur.
+- [x] Demo senaryolarında gerçek yatırım sonucu, gerçek KAP olayı veya gerçek zamanlı BIST fiyatı iddiası kullanma; demo kimlikleri, zamanları ve kaynak durumunu canlı kayıtlardan teknik olarak ayır.
+- [x] Teknik, finansal, değerleme, KAP/katalizör ve risk metriklerini taşıyacak sembol gözlemi, OHLCV, olay ve risk veri modellerini oluştur.
+- [x] Trend, momentum, hacim, finansal kalite, büyüme, değerleme, KAP/öykü ve risk ayarlamasından oluşan açıklanabilir 100 puanlık kalite/fırsat skor motorunu oluştur.
+- [x] Hacim ivmesi, momentum ivmesi, trend dönüşü, kırılım yakınlığı, 52 hafta bağlamı, RSI, volatilite ve fiyat-hacim teyidini kullanan ayrı Early Score motorunu oluştur.
+- [x] Risk skoru, seviye sınıflandırması ve katkı/düşürücü açıklamaları oluştur; skor ve erken aday kararını ayrı tut.
+- [x] Her sonuçta skoru yükselten/düşüren faktörleri, hesap parametrelerini ve kaynak durumunu görünür kıl.
+- [x] X Pro ana sayfasında veri durumu, taranan evren, adaylar, erken adaylar, hacim/trend hareketleri, KAP durumu ve riskli hareketler için açık canlı/demo boş durumlarını uygula.
+- [x] Sembol detay ekranında skorlar, teknik/fundamental/değerleme/risk/KAP bölümleri, zaman dilimli grafik iskeleti ve kaynak/uyarı katmanlarını uygula.
+- [x] X Pro sembol detayında 1D/5D/1M/3M/6M/1Y/5Y zaman dilimi denetimleri ile mum-hacim/ortalama grafik iskeletini; demo ve canlı kaynak ayrımını görünür tutarak uygula.
+- [x] Kullanıcının eşik seçerek tarama başlatabildiği filtreleme motorunu; sonuç yoksa nedenini ve veri eksiklerini açıkça gösteren çalışma alanıyla uygula.
+- [x] Favorilerde skor/erken skor/risk/fiyat/hacim değişim sözleşmesini oluştur; veri yokken tarihsel değişim üretme.
+- [x] Elenenler ile “Neden seçilmedi?” alanlarını, kural-temelli açıklama ve veri eksikliği ayrımıyla uygula.
+- [x] Gerçek tarihli OHLCV gelmeden performans iddiası üretmeyen; 5/20/60/120 gün forward getiri, kazanma oranı ve kayıp/kazanç ölçümlerine hazır backtest sözleşmesini oluştur.
+- [x] X Pro motorları için demo ayrımı, skor açıklanabilirliği, filtreleme ve veri bütünlüğünü kapsayan Vitest testleri ile mobil/production doğrulamasını tamamla.
+- [x] Ana araştırma masasından X Pro çalışma alanına açık ve erişilebilir geçiş ekle; çalışma adresi ayrımını koru.
+- [x] “Gümüş Avcısı X Pro nasıl çalışır?” metodoloji görünümünde veri → filtre → teknik → momentum → kalite → değerleme → olay → risk → Early Score → sıralama zincirini ve ağırlıkları açıkla.
