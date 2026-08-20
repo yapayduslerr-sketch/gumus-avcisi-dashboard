@@ -97,11 +97,15 @@
 
 ## Lisanslı B aşaması aktivasyonu
 
-- [ ] KAP veri sağlayıcısı seçildiğinde `KAP_API_BASE_URL` ve `KAP_API_KEY` güvenli ortam değişkenlerini ekle; resmî sağlık çağrısıyla erişimi doğrula.
-- [ ] Tarihli BIST fiyat-hacim sağlayıcısı seçildiğinde `BIST_MARKET_API_BASE_URL` ve `BIST_MARKET_API_KEY` güvenli ortam değişkenlerini ekle; ilk snapshot alımını doğrula.
-- [ ] Hesap bazlı bulut senkronizasyonu için Vercel üretim ortamına kullanıcı veritabanı bağlantısını ekleyip cihaz listesini güvenli kullanıcı kapsamına taşı.
+- [ ] KAP veri sağlayıcısı seçildiğinde `KAP_API_BASE_URL` ve `KAP_API_KEY` güvenli ortam değişkenlerini ekle; resmî sağlık çağrısıyla erişimi doğrula. Bloke: kullanıcıda şu an lisanslı KAP erişimi yok.
+- [ ] Tarihli BIST fiyat-hacim sağlayıcısı seçildiğinde `BIST_MARKET_API_BASE_URL` ve `BIST_MARKET_API_KEY` güvenli ortam değişkenlerini ekle; ilk snapshot alımını doğrula. Bloke: kullanıcıda şu an lisanslı piyasa verisi erişimi yok.
+- [ ] Hesap bazlı bulut senkronizasyonu için Vercel üretim ortamına kullanıcı veritabanı bağlantısını ekleyip cihaz listesini güvenli kullanıcı kapsamına taşı. Bloke: A aşamasında veriler cihazda yerel tutuluyor.
+
+## A aşaması kararı
+
+- [x] Lisanslı sağlayıcı gelene kadar kişisel izleme listesi, notlar, uyarı tercihleri ve açık kaynak sağlığıyla A aşamasını işlet; B adapterlerini `LİSANS GEREKİR` durumunda tut.
 
 ## Çalışan HTTPS erişimi
 
-- [ ] Manus alan adındaki `ERR_SSL_PROTOCOL_ERROR` hatasını eski erişim kanalı olarak belgele; kullanıcıyı Vercel HTTPS adresine yönlendir.
-- [ ] Güncel A+B araştırma geliştirmelerini GitHub bağlı Vercel production dağıtımına aktar ve canlı URL’de doğrula.
+- [x] Manus alan adındaki `ERR_SSL_PROTOCOL_ERROR` hatasını eski erişim kanalı olarak belgele; kullanıcıyı Vercel HTTPS adresine yönlendir.
+- [x] Güncel A+B araştırma geliştirmelerini GitHub bağlı Vercel production dağıtımına aktar ve canlı URL’de doğrula; Vercel ana sayfa 200 ve `/api/research-capabilities` JSON 200 dönüyor.
