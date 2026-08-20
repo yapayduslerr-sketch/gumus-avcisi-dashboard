@@ -118,16 +118,16 @@
 - [x] Kaynak URL’si, gözlem zamanı ve OHLCV bütünlüğü geçerli değilse sonuç üretmeyen teknik tarama çekirdeğini ekle; RSI, MACD, Bollinger, hacim eşiği, 10/50 kesişimi, 50/200 bağlamı ve 52-hafta zirve bağlamı için birim testleri yaz.
 - [x] Özgün mobil teknik model seçim masası ile döviz, Brent, ons altın ve kripto için kaynak-etiketli API bekleme kartlarını uygula; gerçek veri gelene kadar sayısal sonuç gösterme.
 - [x] Seçili teknik modellerin parametre, varsayılan zaman dilimi, minimum geçmiş ve doğrulanmış sonuç satırı sözleşmesini içeren indirilebilir CSV şemasını ekle.
-- [ ] Özgün Gümüş Avcısı tasarım diliyle mobil odaklı Ana Sayfa, Sinyaller, Piyasalar ve KAP çalışma alanlarını ekle; üçüncü taraf ürünün görsel kimliğini veya metinlerini kopyalama.
-- [ ] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
-- [ ] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
+- [x] Özgün Gümüş Avcısı tasarım diliyle mobil odaklı Ana Sayfa, Sinyaller, Piyasalar ve KAP çalışma alanlarını ekle; üçüncü taraf ürünün görsel kimliğini veya metinlerini kopyalama.
+- [x] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
+- [x] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
 - [ ] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma.
 - [ ] Sembol detay grafiği için tarihli mum, hacim, indikatör katmanı ve kaynak/başarı/hata zamanını gösteren özgün ekranı uygula.
 - [ ] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru.
-- [ ] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
+- [x] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
 - [ ] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut.
 - [ ] Lisanslı BIST OHLCV ile KAP bildirimleri bağlandığında tarama sonuçları ve KAP kartlarını yalnızca tarihli, kaynak URL’li ve izlenebilir kayıtlarla doldur.
-- [ ] Yeni teknik model hesapları, veri geçerliliği, CSV çıktısı ve boş/veri hatası durumları için Vitest kapsamı ekle; mobil görünüm, TypeScript ve production build doğrulamasını tamamla.
+- [x] Yeni teknik model hesapları, veri geçerliliği, CSV çıktısı ve boş/veri hatası durumları için Vitest kapsamı ekle; mobil görünüm, TypeScript ve production build doğrulamasını tamamla.
 
 ## Kullanıcının seçtiği kademeli tam-veri hedefi
 
@@ -136,3 +136,17 @@
 - [ ] KAP için resmî/lisanslı makine-okunur bildirim kaynağı seçeneğini ve maliyet/erişim gereksinimlerini kullanıcıya sun; kaynak seçilene kadar KAP kartlarını taranabilir bekleme durumunda tut.
 - [ ] Seçilen veri kaynaklarının anahtarlarını yalnızca güvenli ortam değişkenleriyle yapılandır; istemciye anahtar veya sağlayıcı ham yanıtı sızdırma.
 - [ ] Teknik tarama ve çoklu-varlık veri yenilemesini sağlayıcı sözleşmesi, Vercel çalışma sınırları ve idempotent güncelleme mimarisiyle uyumlu uygula.
+
+## Kullanıcının önerdiği veri erişim kanalları
+
+- [ ] Finans Invest için resmî API, veri terminali veya dışa aktarma erişimini; BIST OHLCV kapsamını ve webde yeniden gösterim iznini doğrula.
+- [ ] İş Bankası ve Midas için resmî geliştirici/veri erişiminin BIST teknik tarama kullanımına uygunluğunu doğrula.
+- [x] Investing.com ve TradingView için resmî API/lisans koşullarını incele; izinsiz sayfa kazıma veya oturumlu veri çekme yöntemlerini kapsam dışı bırak.
+- [ ] Kullanıcıya, kaynak kapsamı ve yeniden yayın izni teyit edildikten sonra en uygun entegrasyon kararını sun; yalnızca seçilen izinli kaynağın adapterini etkinleştir.
+
+## Seçilen lisanslı BIST OHLCV rotası
+
+- [ ] Forinvest ve dxFeed’den BIST pay evreni için günlük ile 15 dakikalık OHLCV, minimum tarihçe, gecikme, API teslim biçimi ve web dashboardunda yeniden gösterim koşullarını yazılı olarak doğrula.
+- [x] Forinvest/dxFeed teklif isteğinde teknik tarama, kaynak URL’si, gözlem zamanı, 250+ günlük bar ve sınırlı web gösterimi kullanım senaryosunu açıkça belirt; gönderime hazır teklif metnini `docs/bist-ohclv-provider-request.md` içinde oluştur.
+- [ ] Sağlayıcı seçildikten sonra `BIST_MARKET_API_BASE_URL`, `BIST_MARKET_API_KEY`, sembol eşleme ve gecikme alanlarını güvenli biçimde yapılandır; ham sağlayıcı yanıtını istemciye geçirme.
+- [ ] Tarihli BIST OHLCV ile teknik model kesişimi, sembol grafiği, artan/azalan ve hacim lideri sonuçlarını kaynak/zaman görünürlüğüyle etkinleştir.
