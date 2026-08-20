@@ -131,7 +131,7 @@
 ## Kullanıcının seçtiği kademeli tam-veri hedefi
 
 - [ ] BIST teknik tarama için en az 15 dakika gecikmeli, lisansı ve kullanım koşulları doğrulanmış OHLCV sağlayıcısını seç; sembol kapsamı, güncelleme sıklığı, gecikme ve ticari kullanım koşullarını kaydet.
-- [x] Döviz, Brent, ons altın ve kripto kartları için Twelve Data API kaynağını, sembol eşlemesini, gözlem zamanını ve veri lisansı beyanını doğrula; her karta kaynak durumunu bağla. Canlı aktivasyon `TWELVE_DATA_API_KEY` bekliyor.
+- [x] Döviz, Brent, ons altın ve kripto kartları için Twelve Data API kaynağını, sembol eşlemesini, gözlem zamanını ve veri lisansı beyanını doğrula; her karta kaynak durumunu bağla. `TWELVE_DATA_API_KEY` Vercel Production/Preview ortamında etkinleştirildi; USD/TRY, XAU/USD ve BTC/USD kaynak/zaman etiketiyle canlı doğrulandı. BRENT, mevcut pakette kapsam dışı olduğundan `KAPSAM BEKLER` durumunda tutuluyor.
 - [ ] KAP için resmî/lisanslı makine-okunur bildirim kaynağı seçeneğini ve maliyet/erişim gereksinimlerini kullanıcıya sun; kaynak seçilene kadar KAP kartlarını taranabilir bekleme durumunda tut.
 - [ ] Seçilen veri kaynaklarının anahtarlarını yalnızca güvenli ortam değişkenleriyle yapılandır; istemciye anahtar veya sağlayıcı ham yanıtı sızdırma.
 - [ ] Teknik tarama ve çoklu-varlık veri yenilemesini sağlayıcı sözleşmesi, Vercel çalışma sınırları ve idempotent güncelleme mimarisiyle uyumlu uygula.
