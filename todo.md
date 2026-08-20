@@ -100,3 +100,8 @@
 - [ ] KAP veri sağlayıcısı seçildiğinde `KAP_API_BASE_URL` ve `KAP_API_KEY` güvenli ortam değişkenlerini ekle; resmî sağlık çağrısıyla erişimi doğrula.
 - [ ] Tarihli BIST fiyat-hacim sağlayıcısı seçildiğinde `BIST_MARKET_API_BASE_URL` ve `BIST_MARKET_API_KEY` güvenli ortam değişkenlerini ekle; ilk snapshot alımını doğrula.
 - [ ] Hesap bazlı bulut senkronizasyonu için Vercel üretim ortamına kullanıcı veritabanı bağlantısını ekleyip cihaz listesini güvenli kullanıcı kapsamına taşı.
+
+## Çalışan HTTPS erişimi
+
+- [ ] Manus alan adındaki `ERR_SSL_PROTOCOL_ERROR` hatasını eski erişim kanalı olarak belgele; kullanıcıyı Vercel HTTPS adresine yönlendir.
+- [ ] Güncel A+B araştırma geliştirmelerini GitHub bağlı Vercel production dağıtımına aktar ve canlı URL’de doğrula.
