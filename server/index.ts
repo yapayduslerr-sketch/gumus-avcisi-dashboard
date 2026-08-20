@@ -3,7 +3,7 @@ import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getSourceStatuses, runScheduledUpdate } from "./dataPipeline";
-import { authenticateScheduledRequest } from "./scheduledAuth";
+import { authenticateRequest } from "./_core/sdk";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,9 +26,14 @@ async function startServer() {
   // This endpoint is deliberately idempotent and ignores request-body fields.
   // It only probes public source pages and writes the resulting health state.
   app.post("/api/scheduled/update-market-data", async (req, res) => {
-    const auth = authenticateScheduledRequest(req);
-    if (!auth.ok) {
-      return res.status(403).json({ error: "cron-only endpoint", reason: auth.reason });
+    let user;
+    try {
+      user = await authenticateRequest(req);
+    } catch (error) {
+      return res.status(403).json({ error: "cron-only endpoint", reason: error instanceof Error ? error.message : String(error) });
+    }
+    if (!user.isCron || !user.taskUid) {
+      return res.status(403).json({ error: "cron-only endpoint" });
     }
     try {
       const sources = await runScheduledUpdate();

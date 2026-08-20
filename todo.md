@@ -32,7 +32,7 @@
 - [x] KAP tarafını lisanslı API gelene kadar `KAP API beklemede` durumuyla temsil et.
 - [x] Her veri kaydında kaynak URL, son başarılı güncelleme ve hata durumunu göster.
 - [x] Public sayfa erişimi için scraping yerine sınırlı, idempotent kaynak adapteri kullan.
-- [ ] Otomatik güncelleme için üretimde çalışan `/api/scheduled/*` Heartbeat endpointini ekle.
+- [x] Otomatik güncelleme için üretimde çalışan `/api/scheduled/*` Heartbeat görevini oluştur; görev kimliği `TUntPVnLhHi83AmVTAxDB5`.
 
 ## Doğrulama sonrası iyileştirmeler
 
@@ -41,3 +41,14 @@
 - [x] Dashboard’da source status `errorMessage` alanını görünür hata durumu olarak göster.
 - [x] BIST kaynağına ait açık kaynak zamanı (`observedAt`) etiketini ayrı göster.
 - [x] Her sinyal kaydında kaynak URL, güncelleme zamanı ve hata/durum bilgisini görünür kıl.
+
+## Heartbeat üretim doğrulaması
+
+- [ ] Heartbeat görevi `TUntPVnLhHi83AmVTAxDB5` için execution loglarını veya Run Now sonucunu kontrol et; callback’in 2xx döndüğünü kanıtla.
+- [ ] Scheduled endpoint auth’unu gerçek Heartbeat isteğinde doğrula ve gerekiyorsa platform SDK akışına hizala.
+- [ ] Başarılı Heartbeat çalışmasından sonra `source_statuses` kayıtlarının güncellendiğini veritabanında kontrol et.
+
+## TLS engeli sonrası dağıtım doğrulaması
+
+- [ ] Vercel üretim dağıtımında `/api/source-status` ve zamanlanmış güncelleme endpointlerinin erişilebilirliğini doğrula.
+- [ ] Manus alan adı TLS hatasından bağımsız, kullanıcı için çalışan Vercel HTTPS adresini otomasyon ve dashboard kaynak durumu için tek doğrulanmış erişim noktası olarak doğrula.
