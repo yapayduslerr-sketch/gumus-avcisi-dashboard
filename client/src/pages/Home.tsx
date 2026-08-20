@@ -1,7 +1,7 @@
 /**
  * Design system: Analist Masası — source-first BIST research terminal with a graphite workspace.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -29,6 +29,17 @@ const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/3105
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
 const RADAR_VISUAL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/bMJsBOnwZiqmPCeR.jpg";
 const SOURCE_VISUAL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LIjEqXdkRNrpgZMV.jpg";
+
+type SourceStatus = {
+  sourceKey: string;
+  label: string;
+  status: "DELAYED" | "PENDING_API" | "OK" | "STALE" | "ERROR";
+  sourceUrl: string;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  observedAt: string | null;
+  errorMessage: string | null;
+};
 
 type Signal = {
   code: string;
@@ -136,11 +147,48 @@ function SideRail({ mobile = false, close }: { mobile?: boolean; close?: () => v
   );
 }
 
+function SourceStatusBadge({ status }: { status: SourceStatus["status"] }) {
+  const labels: Record<SourceStatus["status"], string> = {
+    DELAYED: "15 dk gecikmeli",
+    PENDING_API: "KAP API beklemede",
+    OK: "Güncel",
+    STALE: "Son başarılı güncelleme eski",
+    ERROR: "Güncelleme hatası",
+  };
+  const colors: Record<SourceStatus["status"], string> = {
+    DELAYED: "border-[#8ee19b]/30 bg-[#8ee19b]/10 text-[#a7edb0]",
+    PENDING_API: "border-[#d9c27d]/30 bg-[#d9c27d]/10 text-[#ead38e]",
+    OK: "border-[#8ee19b]/30 bg-[#8ee19b]/10 text-[#a7edb0]",
+    STALE: "border-white/15 bg-white/5 text-[#cad0ca]",
+    ERROR: "border-[#e98282]/30 bg-[#e98282]/10 text-[#f0aaaa]",
+  };
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] tracking-[.05em] ${colors[status]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{labels[status]}</span>;
+}
+
+function formatSourceTime(value: string | null) {
+  if (!value) return "Henüz yok";
+  return new Date(value).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
+}
+
 export default function Home() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"Tümü" | Signal["kind"]>("Tümü");
   const [openCode, setOpenCode] = useState<string | null>("TUPRS");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sourceStatuses, setSourceStatuses] = useState<SourceStatus[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/source-status")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Kaynak durumları alınamadı")))
+      .then((payload: { sources?: SourceStatus[] }) => { if (active) setSourceStatuses(payload.sources ?? []); })
+      .catch(() => { if (active) setSourceStatuses([]); });
+    return () => { active = false; };
+  }, []);
+
+  const bistSource = sourceStatuses.find((source) => source.sourceKey === "BIST_PUBLIC");
+  const kapSource = sourceStatuses.find((source) => source.sourceKey === "KAP_PUBLIC");
+  const lastSuccessfulUpdate = sourceStatuses.map((source) => source.lastSuccessAt).filter(Boolean).sort().at(-1) ?? null;
 
   const filteredSignals = useMemo(() => signals.filter((signal) => {
     const query = search.trim().toLocaleLowerCase("tr-TR");
@@ -183,7 +231,7 @@ export default function Home() {
           <div className="mx-auto max-w-[1240px]">
             <div className="intro-rise flex flex-wrap items-center justify-between gap-4 border-b border-white/12 pb-5">
               <div className="flex items-center gap-3"><img src={LOGO} alt="Gümüş Avcısı radar simgesi" className="h-11 w-11 rounded-xl border border-white/12 bg-[#121513]/60 p-1.5 object-contain" /><div><p className="serif-title text-xl leading-none text-white">Gümüş Avcısı</p><p className="mono mt-1.5 text-[9px] tracking-[.19em] text-[#8ee19b]">BIST ARAŞTIRMA MASASI</p></div></div>
-              <div className="flex flex-wrap items-center gap-3"><span className="eyebrow flex items-center gap-2"><Radar size={14} />Radar aktif</span><span className="h-px w-8 bg-[#8ee19b]/45" /><span className="data-label text-[#b6beb6]">Referans / 18 Ağustos 2026</span></div>
+              <div className="flex flex-wrap items-center gap-3"><span className="eyebrow flex items-center gap-2"><Radar size={14} />Radar aktif</span><span className="h-px w-8 bg-[#8ee19b]/45" /><span className="data-label text-[#b6beb6]">{bistSource ? <SourceStatusBadge status={bistSource.status} /> : "BIST durum kontrolü bekleniyor"}</span></div>
             </div>
             <div className="grid gap-10 pt-9 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
               <div className="intro-rise-delay max-w-[740px]">
@@ -199,7 +247,7 @@ export default function Home() {
                 <p className="data-label">Araştırma statüsü</p>
                 <div className="mt-4 flex items-end justify-between"><div><p className="mono text-3xl font-medium text-[#8ee19b]">03</p><p className="mt-1 text-sm text-[#d8ddd8]">izlenen kaynak notu</p></div><Sparkles size={24} className="text-[#8ee19b]" /></div>
                 <div className="my-5 h-px silver-rule" />
-                <div className="space-y-3 text-xs"><div className="flex justify-between text-[#cfd5ce]"><span>KAP birincil doğrulama</span><span className="mono text-[#8ee19b]">02 / 03</span></div><div className="flex justify-between text-[#cfd5ce]"><span>Kaynak katmanı</span><span className="mono text-white">KAP · BIST · IR</span></div><div className="flex justify-between text-[#cfd5ce]"><span>Eksik alan etiketi</span><span className="mono text-[#d9c27d]">AÇIK</span></div></div>
+                <div className="space-y-3 text-xs"><div className="flex justify-between text-[#cfd5ce]"><span>KAP birincil doğrulama</span><span className="mono text-[#8ee19b]">02 / 03</span></div><div className="flex justify-between text-[#cfd5ce]"><span>Kaynak katmanı</span><span className="mono text-white">KAP · BIST · IR</span></div><div className="flex justify-between text-[#cfd5ce]"><span>Eksik alan etiketi</span><span className="mono text-[#d9c27d]">AÇIK</span></div><div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3"><span className="text-[#cfd5ce]">KAP durumu</span>{kapSource ? <SourceStatusBadge status={kapSource.status} /> : <span className="mono text-[#d9c27d]">BEKLEMEDE</span>}</div><div className="flex justify-between gap-3 text-[#9fa99f]"><span>BIST kaynak zamanı</span><span className="mono text-right text-white">{formatSourceTime(bistSource?.observedAt ?? null)}</span></div><div className="flex justify-between gap-3 text-[#9fa99f]"><span>Son başarılı güncelleme</span><span className="mono text-right text-white">{formatSourceTime(lastSuccessfulUpdate)}</span></div>{kapSource?.errorMessage && <p className="border-t border-[#d9c27d]/20 pt-3 text-[10px] leading-4 text-[#d9c27d]">Durum notu: {kapSource.errorMessage}</p>}</div>
               </div>
             </div>
             <div className="mt-16 grid border-y border-white/12 sm:grid-cols-2 xl:grid-cols-4">
@@ -222,14 +270,14 @@ export default function Home() {
                 {filteredSignals.length ? filteredSignals.map((signal) => {
                   const selected = openCode === signal.code;
                   return <button key={signal.code} onClick={() => setOpenCode(selected ? null : signal.code)} className={`group grid w-full gap-3 border-b border-white/8 p-5 text-left transition last:border-0 md:grid-cols-[100px_minmax(0,1fr)_135px_32px] md:items-center ${selected ? 'bg-[#8ee19b]/[.07]' : 'hover:bg-white/[.035]'}`}>
-                    <div><p className="mono text-base text-white">{signal.code}</p><p className="mt-1 font-mono text-[10px] text-[#8ee19b]">{signal.source}</p><p className="mt-1 text-[10px] text-[#778277]">{signal.date}</p></div>
+                    <div><p className="mono text-base text-white">{signal.code}</p><p className="mt-1 font-mono text-[10px] text-[#8ee19b]">{signal.source}</p><p className="mt-1 text-[10px] text-[#778277]">{signal.date}</p><p className="mt-2 text-[9px] text-[#d9c27d]">{signal.source === "KAP" ? kapSource ? (kapSource.status === "PENDING_API" ? "KAP API beklemede" : kapSource.status) : "KAP durum bekleniyor" : "IR kaynak kaydı"}</p></div>
                     <div><p className="text-sm font-bold leading-5 text-[#edf0eb]">{signal.title}</p><p className="mt-1 line-clamp-1 text-xs text-[#9da89f]">{signal.company}</p></div>
                     <div><StatusBadge kind={signal.kind}/></div><ChevronRight className={`hidden h-4 w-4 text-[#8ee19b] transition-transform md:block ${selected ? 'rotate-90' : 'group-hover:translate-x-1'}`} />
                   </button>;
                 }) : <div className="px-5 py-12 text-center"><Search className="mx-auto h-6 w-6 text-[#607060]"/><p className="mt-3 text-sm text-[#a7afa7]">Bu aramaya uyan kayıt yok.</p></div>}
               </div>
               <div className="min-h-[340px] overflow-hidden rounded-2xl border border-white/12 bg-[#1a201c] p-6">
-                {openCode ? (() => { const item = signals.find((signal) => signal.code === openCode); if (!item) return null; return <div className="flex h-full flex-col"><div className="flex items-start justify-between gap-3"><StatusBadge kind={item.kind}/><a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] text-[#8ee19b] hover:underline">Birincil kaynağa git <ExternalLink size={12}/></a></div><p className="mono mt-6 text-[11px] tracking-[.14em] text-[#9ba69b]">{item.code} · {item.source} · {item.date}</p><h3 className="serif-title mt-3 text-3xl leading-[1.02] text-white">{item.title}</h3><p className="mt-5 text-sm leading-6 text-[#c5cdc5]">{item.summary}</p><div className="mt-auto border-t border-white/10 pt-4"><p className="data-label flex items-center gap-2 text-[#d9c27d]"><CircleAlert size={13}/> İzleme notu</p><p className="mt-2 text-xs leading-5 text-[#bec6be]">{item.risk}</p></div></div>; })() : <div className="flex h-full flex-col items-center justify-center text-center"><Layers3 className="h-8 w-8 text-[#8ee19b]"/><p className="mt-4 text-sm font-semibold text-white">Bir bildirime odaklanın</p><p className="mt-2 max-w-[230px] text-xs leading-5 text-[#9ca69c]">Soldaki kayıtlardan birini seçerek kaynak notunu ve risk etiketini görün.</p></div>}
+                {openCode ? (() => { const item = signals.find((signal) => signal.code === openCode); if (!item) return null; return <div className="flex h-full flex-col"><div className="flex items-start justify-between gap-3"><StatusBadge kind={item.kind}/><a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] text-[#8ee19b] hover:underline">Birincil kaynağa git <ExternalLink size={12}/></a></div><p className="mono mt-6 text-[11px] tracking-[.14em] text-[#9ba69b]">{item.code} · {item.source} · {item.date}</p><h3 className="serif-title mt-3 text-3xl leading-[1.02] text-white">{item.title}</h3><p className="mt-5 text-sm leading-6 text-[#c5cdc5]">{item.summary}</p><div className="mt-5 grid gap-2 border-t border-white/10 pt-4 text-[11px] text-[#9fa99f]"><div className="flex justify-between gap-3"><span>Kaynak zamanı</span><span className="mono text-right text-white">{item.date}</span></div><div className="flex justify-between gap-3"><span>Son başarılı güncelleme</span><span className="mono text-right text-white">{formatSourceTime(kapSource?.lastSuccessAt ?? null)}</span></div><div className="flex justify-between gap-3"><span>Kaynak durumu</span><span className="text-right">{kapSource ? <SourceStatusBadge status={kapSource.status} /> : <span className="mono text-[#d9c27d]">KAP API beklemede</span>}</span></div>{kapSource?.errorMessage && <p className="text-[10px] leading-4 text-[#d9c27d]">Hata/durum notu: {kapSource.errorMessage}</p>}<a href={item.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[#8ee19b] hover:underline">Kaynak URL’sini aç <ExternalLink size={12}/></a></div><div className="mt-4 border-t border-white/10 pt-4"><p className="data-label flex items-center gap-2 text-[#d9c27d]"><CircleAlert size={13}/> İzleme notu</p><p className="mt-2 text-xs leading-5 text-[#bec6be]">{item.risk}</p></div></div>; })() : <div className="flex h-full flex-col items-center justify-center text-center"><Layers3 className="h-8 w-8 text-[#8ee19b]"/><p className="mt-4 text-sm font-semibold text-white">Bir bildirime odaklanın</p><p className="mt-2 max-w-[230px] text-xs leading-5 text-[#9ca69c]">Soldaki kayıtlardan birini seçerek kaynak notunu ve risk etiketini görün.</p></div>}
               </div>
             </div>
           </div>
@@ -251,7 +299,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="border-t border-white/10 bg-[#0e100f] px-5 py-8 sm:px-8 lg:px-10"><div className="mx-auto flex max-w-[1240px] flex-col justify-between gap-5 sm:flex-row sm:items-end"><div className="flex items-center gap-3"><img src={LOGO} alt="" className="h-9 w-9 object-contain"/><div><p className="serif-title text-xl text-white">Gümüş Avcısı</p><p className="mono mt-0.5 text-[9px] tracking-[.13em] text-[#758075]">BIST ARAŞTIRMA MASASI</p></div></div><div className="max-w-[540px] text-left sm:text-right"><p className="text-xs leading-5 text-[#98a198]">Bu site araştırma ve analiz içindir; kişiselleştirilmiş yatırım tavsiyesi veya getiri garantisi değildir. Finansal risk ve karar sorumluluğu kullanıcıdadır.</p><p className="mt-2 mono text-[9px] tracking-wide text-[#606960]">KAYNAK NOTU · 18.08.2026 · GMT+3</p></div></div></footer>
+        <footer className="border-t border-white/10 bg-[#0e100f] px-5 py-8 sm:px-8 lg:px-10"><div className="mx-auto flex max-w-[1240px] flex-col justify-between gap-5 sm:flex-row sm:items-end"><div className="flex items-center gap-3"><img src={LOGO} alt="" className="h-9 w-9 object-contain"/><div><p className="serif-title text-xl text-white">Gümüş Avcısı</p><p className="mono mt-0.5 text-[9px] tracking-[.13em] text-[#758075]">BIST ARAŞTIRMA MASASI</p></div></div><div className="max-w-[540px] text-left sm:text-right"><p className="text-xs leading-5 text-[#98a198]">Bu site araştırma ve analiz içindir; kişiselleştirilmiş yatırım tavsiyesi veya getiri garantisi değildir. Finansal risk ve karar sorumluluğu kullanıcıdadır.</p><p className="mt-2 mono text-[9px] tracking-wide text-[#606960]">SON BAŞARILI GÜNCELLEME · {formatSourceTime(lastSuccessfulUpdate)} · GMT+3</p></div></div></footer>
       </main>
     </div>
   );
