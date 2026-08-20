@@ -25,10 +25,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const LOGO = "/manus-storage/gumus-avcisi-mark_1935d55f.png";
-const HERO = "/manus-storage/gumus-avcisi-hero-terminal_e619a044.jpg";
-const RADAR_VISUAL = "/manus-storage/gumus-avcisi-radar-visual_a8993826.jpg";
-const SOURCE_VISUAL = "/manus-storage/gumus-avcisi-source-mosaic_77ba357a.jpg";
+const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
+const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
+const RADAR_VISUAL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/bMJsBOnwZiqmPCeR.jpg";
+const SOURCE_VISUAL = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LIjEqXdkRNrpgZMV.jpg";
 
 type Signal = {
   code: string;
