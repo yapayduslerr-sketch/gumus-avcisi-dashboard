@@ -104,6 +104,9 @@
 ## A aşaması kararı
 
 - [x] Lisanslı sağlayıcı gelene kadar kişisel izleme listesi, notlar, uyarı tercihleri ve açık kaynak sağlığıyla A aşamasını işlet; B adapterlerini `LİSANS GEREKİR` durumunda tut.
+- [x] Cihazdaki izleme listesi, notlar ve uyarı tercihleri için JSON dışa aktarma/İçe aktarma akışı ekle.
+- [x] Kaynak sağlık durumunu sayfa yenilemeden kontrol eden manuel yenileme etkileşimi ekle.
+- [x] A aşaması veri saklama sınırlarını, cihaz değiştirme adımını ve veri silme kontrolünü arayüzde görünür kıl.
 
 ## Çalışan HTTPS erişimi
 

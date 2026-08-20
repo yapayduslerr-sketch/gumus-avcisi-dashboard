@@ -1,7 +1,7 @@
 /**
  * Design system: Analist Masası — source-first BIST research terminal with a graphite workspace.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
-import { defaultAlertPreferences, loadAlertPreferences, loadWatchlist, persistAlertPreferences, removeWatchlistItem, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
+import { clearPersonalResearchData, createPersonalResearchBackup, defaultAlertPreferences, loadAlertPreferences, loadWatchlist, parsePersonalResearchBackup, persistAlertPreferences, removeWatchlistItem, restorePersonalResearchBackup, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -251,6 +251,8 @@ export default function Home() {
   const [personalNote, setPersonalNote] = useState("");
   const [alertPreferences, setAlertPreferences] = useState<DeviceAlertPreferences>(defaultAlertPreferences);
   const [capabilities, setCapabilities] = useState<ResearchCapability[]>([]);
+  const [isRefreshingResearchStatus, setIsRefreshingResearchStatus] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -309,6 +311,55 @@ export default function Home() {
     setAlertPreferences(next);
     persistAlertPreferences(next);
     toast.success("Uyarı tercihi bu cihazda kaydedildi.");
+  };
+  const refreshResearchStatus = async () => {
+    setIsRefreshingResearchStatus(true);
+    try {
+      const [sourcesResponse, capabilitiesResponse] = await Promise.all([fetch("/api/source-status"), fetch("/api/research-capabilities")]);
+      if (!sourcesResponse.ok || !capabilitiesResponse.ok) throw new Error("Kaynak durumu güncellenemedi.");
+      const [sourcesPayload, capabilitiesPayload] = await Promise.all([sourcesResponse.json() as Promise<{ sources?: SourceStatus[] }>, capabilitiesResponse.json() as Promise<{ capabilities?: ResearchCapability[] }>]);
+      setSourceStatuses(sourcesPayload.sources ?? []);
+      setCapabilities(capabilitiesPayload.capabilities ?? []);
+      toast.success("Kaynak ve adapter durumu yenilendi.");
+    } catch {
+      toast.error("Kaynak durumunu yenilemek için bağlantı kurulamadı.");
+    } finally {
+      setIsRefreshingResearchStatus(false);
+    }
+  };
+  const exportPersonalResearch = () => {
+    const backup = createPersonalResearchBackup(watchlist, alertPreferences);
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `gumus-avcisi-arastirma-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Cihazdaki araştırma yedeği indirildi.");
+  };
+  const importPersonalResearch = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const backup = parsePersonalResearchBackup(await file.text());
+      restorePersonalResearchBackup(backup);
+      setWatchlist(backup.watchlist);
+      setAlertPreferences(backup.alertPreferences);
+      toast.success(`${backup.watchlist.length} izleme kaydı içe aktarıldı.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Yedek dosyası okunamadı.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+  const clearDeviceResearch = () => {
+    if (!window.confirm("Bu cihazdaki tüm izleme kayıtları, notlar ve uyarı tercihleri silinsin mi?")) return;
+    clearPersonalResearchData();
+    setWatchlist([]);
+    setAlertPreferences(defaultAlertPreferences);
+    setPersonalNote("");
+    toast.message("Bu cihazdaki kişisel araştırma verileri silindi.");
   };
 
   const copyResearchNote = async () => {
@@ -416,6 +467,8 @@ export default function Home() {
           <div className="absolute inset-0 terminal-grid opacity-20" />
           <div className="relative mx-auto max-w-[1240px]">
             <div className="flex flex-col justify-between gap-6 border-b border-white/12 pb-8 md:flex-row md:items-end"><div className="max-w-2xl"><p className="eyebrow">03 / Kişisel araştırma alanı</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">İzleyin, not alın,<br/><em className="text-[#aeb8af]">kaynağı bekleyin.</em></h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">Aşama A bu tarayıcıdaki izleme listenizi, notlarınızı ve uyarı tercihlerinizi saklar. Hesap-bazlı senkronizasyon ile bildirim teslimi, üretim veri erişimi bağlandığında aynı sözleşmeye taşınır.</p></div><div className="rounded-xl border border-white/12 bg-white/[.035] px-4 py-3 text-xs text-[#b7c0b7]"><p className="data-label">Seçili araştırma</p><p className="mono mt-1 text-base text-white">{selectedResearch?.code ?? "—"}</p></div></div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[.025] p-3"><button onClick={refreshResearchStatus} disabled={isRefreshingResearchStatus} className="rounded-lg border border-[#8ee19b]/30 bg-[#8ee19b]/10 px-3 py-2 text-[11px] font-semibold text-[#b7efbf] transition hover:bg-[#8ee19b]/20 disabled:cursor-wait disabled:opacity-60">{isRefreshingResearchStatus ? "Kontrol ediliyor…" : "Kaynak durumunu yenile"}</button><button onClick={exportPersonalResearch} className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold text-[#dce3dc] transition hover:bg-white/10">Yedeği indir</button><button onClick={() => importInputRef.current?.click()} className="rounded-lg border border-white/12 px-3 py-2 text-[11px] font-semibold text-[#dce3dc] transition hover:bg-white/10">Yedeği içe aktar</button><button onClick={clearDeviceResearch} className="ml-auto rounded-lg px-2 py-2 text-[11px] text-[#aeb8ae] transition hover:bg-white/10 hover:text-[#f0aaaa]">Cihaz verisini sil</button><input ref={importInputRef} type="file" accept="application/json,.json" onChange={importPersonalResearch} className="hidden" /><span className="basis-full text-[10px] leading-4 text-[#879187]">Yedek dosyası yalnızca izleme listesi, notlar ve uyarı tercihlerini içerir; fiyat veya KAP verisi içermez. Yeni cihazda “Yedeği içe aktar” seçeneğini kullanın.</span></div>
 
             <div className="mt-8 grid gap-4 xl:grid-cols-[.94fr_1.06fr]">
               <div className="rounded-2xl border border-white/12 bg-[#161b18] p-6"><div className="flex items-center justify-between gap-4"><div><p className="data-label">İzleme listesi</p><p className="mt-2 text-sm font-semibold text-white">Bu cihazda {watchlist.length} kayıt</p></div><button onClick={isOnWatchlist ? () => removeFromWatchlist() : saveWatchlist} className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${isOnWatchlist ? "border-[#e5c982]/30 bg-[#e5c982]/10 text-[#ead38e]" : "border-[#8ee19b]/40 bg-[#8ee19b]/10 text-[#b7efbf]"}`}>{isOnWatchlist ? "Seçili kaydı çıkar" : "Seçili kaydı ekle"}</button></div>
