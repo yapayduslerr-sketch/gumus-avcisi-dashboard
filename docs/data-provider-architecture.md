@@ -27,6 +27,10 @@ Bir BIST OHLCV sağlayıcısının global emtia, döviz ve kripto kapsamını; g
 
 Vercel Hobby cron işlemleri günde bir kezle sınırlı olduğundan, kullanıcı talep ettiğinde yapılan güncelleme ile kaynak tarafında izin verilen önbellekli çağrılar ayrı planlanır. KAP REST API’nin IP allowlist koşulu doğrulanırsa Vercel’in değişken dış IP yapısı uygun olmayabilir. Bu durumda KAP adapteri için sabit dış IP’li küçük bir servis/proxy gerekir; bu servis yalnızca KAP çağrısı yapar ve sonuçları ana uygulamanın veri sözleşmesine aktarır.
 
+## İlk canlı doğrulama notu
+
+Twelve Data anahtarı ile USD/TRY, XAU/USD ve BTC/USD için kaynaklı yanıt alındı. Sağlayıcının varsayılan `BRENT` sembolü, mevcut pakette tarihsel seri çağrısında **Pro veya Venture planı** gerektirdiğini döndürdü. Bu nedenle Gümüş Avcısı Brent kartında fiyat uydurmaz; kartı `KAPSAM BEKLER` durumunda tutar. Kullanıcı, Twelve Data paketini Brent kapsamını içerecek biçimde yükseltebilir veya Brent spot için ayrı bir lisanslı kaynak bağlanabilir.
+
 ## Sağlayıcı etkinleştirme sırası
 
 1. Kullanıcı BIST OHLCV sağlayıcısıyla kurumsal kullanım ve teknik indikatör üretimini kapsayan paketi seçer.

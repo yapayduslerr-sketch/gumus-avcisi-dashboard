@@ -4,7 +4,7 @@ import { fetchMultiAssetQuotes, getMultiAssetReadiness } from "./multiAssetAdapt
 describe("Twelve Data çoklu-varlık adapteri", () => {
   it("anahtar yokken sağlayıcıya ağ isteği yapmaz", async () => {
     const fetcher = vi.fn();
-    await expect(fetchMultiAssetQuotes({}, fetcher)).resolves.toMatchObject({ state: "LICENSE_REQUIRED", quotes: [] });
+    await expect(fetchMultiAssetQuotes({}, fetcher)).resolves.toMatchObject({ state: "LICENSE_REQUIRED", quotes: [], unavailableAssetKeys: [] });
     expect(fetcher).not.toHaveBeenCalled();
     expect(getMultiAssetReadiness({}).missingEnv).toEqual(["TWELVE_DATA_API_KEY"]);
   });
@@ -19,6 +19,7 @@ describe("Twelve Data çoklu-varlık adapteri", () => {
     const result = await fetchMultiAssetQuotes({ TWELVE_DATA_API_KEY: "secret" }, fetcher);
     expect(result.state).toBe("READY");
     expect(result.quotes).toHaveLength(4);
+    expect(result.unavailableAssetKeys).toEqual([]);
     expect(result.quotes[0]).toMatchObject({ assetKey: "USD_TRY", sourceLabel: "Twelve Data", price: 41.1, percentChange: 0.22 });
     expect(fetcher.mock.calls[0][0]).toContain("https://api.twelvedata.com/quote?symbol=");
     expect(fetcher.mock.calls[0][1]).toEqual({ headers: { Authorization: "apikey secret" } });

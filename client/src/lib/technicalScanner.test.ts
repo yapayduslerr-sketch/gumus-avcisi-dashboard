@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateTechnicalModel, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
+import { evaluateTechnicalModel, summarizeModelIntersection, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
 
 function bars(count: number, multiplier = 1): OhlcvBar[] {
   return Array.from({ length: count }, (_, index) => {
@@ -38,5 +38,12 @@ describe("teknik tarama çekirdeği", () => {
     expect(finding.state).toBe("MATCH");
     expect(finding.evidence.high52w).not.toBeNull();
   });
-});
 
+  it("trend rejimini ve model kesişim sayısını ayrı, kaynaklanabilir çıktılar olarak hesaplar", () => {
+    const data = dataSet(bars(252));
+    const trend = evaluateTechnicalModel(data, "trend-regime");
+    const breakout = evaluateTechnicalModel(data, "fifty-two-week-breakout");
+    expect(trend.state).toBe("MATCH");
+    expect(summarizeModelIntersection([trend, breakout])).toMatchObject({ eligibleModelCount: 2, matchedModelCount: 2, state: "MULTI_MODEL_MATCH" });
+  });
+});

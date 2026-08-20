@@ -18,6 +18,7 @@ export type MultiAssetResult = {
   checkedAt: string;
   detail: string;
   quotes: MultiAssetQuote[];
+  unavailableAssetKeys: MultiAssetKey[];
 };
 
 type Env = Record<string, string | undefined>;
@@ -40,6 +41,9 @@ type TwelveDataQuote = {
   status?: string;
   message?: string;
 };
+
+const QUOTE_CACHE_TTL_MS = 60_000;
+let quoteCache: { expiresAt: number; result: MultiAssetResult } | null = null;
 
 function numeric(value: unknown): number | null {
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
@@ -66,16 +70,17 @@ export function getMultiAssetReadiness(env: Env = process.env) {
 export async function fetchMultiAssetQuotes(env: Env = process.env, fetcher: FetchLike = fetch): Promise<MultiAssetResult> {
   const checkedAt = new Date().toISOString();
   const readiness = getMultiAssetReadiness(env);
-  if (!readiness.ready) return { state: "LICENSE_REQUIRED", checkedAt, detail: `Eksik: ${readiness.missingEnv.join(", ")}`, quotes: [] };
+  if (!readiness.ready) return { state: "LICENSE_REQUIRED", checkedAt, detail: `Eksik: ${readiness.missingEnv.join(", ")}`, quotes: [], unavailableAssetKeys: [] };
+  if (quoteCache && quoteCache.expiresAt > Date.now()) return quoteCache.result;
   const apiKey = env.TWELVE_DATA_API_KEY?.trim();
-  if (!apiKey) return { state: "LICENSE_REQUIRED", checkedAt, detail: "Twelve Data API anahtarı bekleniyor.", quotes: [] };
+  if (!apiKey) return { state: "LICENSE_REQUIRED", checkedAt, detail: "Twelve Data API anahtarı bekleniyor.", quotes: [], unavailableAssetKeys: [] };
   const symbols = configuredSymbols(env);
   const quoteUrl = new URL("/quote", readiness.baseUrl);
   quoteUrl.searchParams.set("symbol", symbols.map((item) => item.symbol).join(","));
 
   try {
     const response = await fetcher(quoteUrl.toString(), { headers: { Authorization: `apikey ${apiKey}` } });
-    if (!response.ok) return { state: "ERROR", checkedAt, detail: `Twelve Data çağrısı HTTP ${response.status} döndü.`, quotes: [] };
+    if (!response.ok) return { state: "ERROR", checkedAt, detail: `Twelve Data çağrısı HTTP ${response.status} döndü.`, quotes: [], unavailableAssetKeys: [] };
     const raw = await response.json();
     const collection: Record<string, TwelveDataQuote> = Array.isArray(raw) ? Object.fromEntries(raw.map((item: TwelveDataQuote) => [item.symbol ?? "", item])) : typeof raw === "object" && raw !== null ? raw as Record<string, TwelveDataQuote> : {};
     const quotes = symbols.flatMap(({ assetKey, label, symbol }) => {
@@ -85,9 +90,12 @@ export async function fetchMultiAssetQuotes(env: Env = process.env, fetcher: Fet
       const timestamp = numeric(payload.timestamp);
       return [{ assetKey, symbol, label, price, percentChange: numeric(payload.percent_change), observedAt: timestamp ? new Date(timestamp * 1000).toISOString() : payload.datetime ? new Date(payload.datetime).toISOString() : checkedAt, sourceLabel: "Twelve Data", sourceUrl: "https://twelvedata.com/", delayMinutes: null } satisfies MultiAssetQuote];
     });
-    if (!quotes.length) return { state: "CONFIG_REQUIRED", checkedAt, detail: "Sağlayıcı yanıtında kullanılabilir sembol bulunamadı; sembol eşlemesini doğrulayın.", quotes: [] };
-    return { state: "READY", checkedAt, detail: "Twelve Data çoklu-varlık kartları güncellendi.", quotes };
+    const unavailableAssetKeys = symbols.filter((item) => !quotes.some((quote) => quote.assetKey === item.assetKey)).map((item) => item.assetKey);
+    if (!quotes.length) return { state: "CONFIG_REQUIRED", checkedAt, detail: "Sağlayıcı yanıtında kullanılabilir sembol bulunamadı; sembol eşlemesini ve plan kapsamını doğrulayın.", quotes: [], unavailableAssetKeys: symbols.map((item) => item.assetKey) };
+    const result = { state: "READY" as const, checkedAt, detail: unavailableAssetKeys.length ? `Twelve Data kartları kısmen güncellendi; ${unavailableAssetKeys.join(", ")} için sembol eşlemesi veya plan kapsamı gerekli.` : "Twelve Data çoklu-varlık kartları güncellendi.", quotes, unavailableAssetKeys };
+    quoteCache = { expiresAt: Date.now() + QUOTE_CACHE_TTL_MS, result };
+    return result;
   } catch (error) {
-    return { state: "ERROR", checkedAt, detail: error instanceof Error ? error.message : "Twelve Data erişim hatası.", quotes: [] };
+    return { state: "ERROR", checkedAt, detail: error instanceof Error ? error.message : "Twelve Data erişim hatası.", quotes: [], unavailableAssetKeys: [] };
   }
 }

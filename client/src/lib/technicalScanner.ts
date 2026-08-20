@@ -23,7 +23,9 @@ export type ScannerModelId =
   | "volume-breakout"
   | "sma-10-50-cross"
   | "golden-cross"
-  | "fifty-two-week-breakout";
+  | "fifty-two-week-breakout"
+  | "trend-regime"
+  | "range-breakout";
 
 export type ScannerModel = {
   id: ScannerModelId;
@@ -32,6 +34,7 @@ export type ScannerModel = {
   description: string;
   minimumBars: number;
   parameters: string;
+  defaultTimeframe: string;
 };
 
 export type TechnicalEvidence = {
@@ -44,6 +47,7 @@ export type TechnicalEvidence = {
   sma200: number | null;
   volumeMultiple20: number | null;
   high52w: number | null;
+  prior20High: number | null;
 };
 
 export type ScannerFinding = {
@@ -56,13 +60,15 @@ export type ScannerFinding = {
 };
 
 export const TECHNICAL_SCANNER_MODELS: ScannerModel[] = [
-  { id: "rsi-momentum", name: "RSI Momentum", shortName: "RSI", description: "RSI(14) 55–75 aralığında ve aşırı alım eşiğinin altında kalır.", minimumBars: 15, parameters: "RSI(14): 55–75" },
-  { id: "macd-cross", name: "MACD Kesişimi", shortName: "MACD", description: "MACD çizgisinin sinyal çizgisini son barda aşağıdan yukarı kesmesi.", minimumBars: 35, parameters: "EMA(12,26), sinyal(9)" },
-  { id: "bollinger-squeeze", name: "Bollinger Sıkışması", shortName: "Bollinger", description: "Bant genişliğinin son 20 gözlem içindeki en düşük çeyrekte olması.", minimumBars: 40, parameters: "SMA(20), ±2σ, genişlik yüzdelik dilimi" },
-  { id: "volume-breakout", name: "Hacim Eşiği", shortName: "Hacim", description: "Güncel hacmin önceki 20 bar ortalamasının en az iki katına ulaşması.", minimumBars: 21, parameters: "Hacim ≥ 2,0× SMA(20)" },
-  { id: "sma-10-50-cross", name: "10/50 Ort. Kesişimi", shortName: "10/50", description: "SMA(10) çizgisinin SMA(50) çizgisini son barda aşağıdan yukarı kesmesi.", minimumBars: 51, parameters: "SMA(10) × SMA(50)" },
-  { id: "golden-cross", name: "Golden Cross", shortName: "50/200", description: "SMA(50) çizgisinin SMA(200) çizgisinin üzerinde bulunması; kesişim anı ayrıca belirtilir.", minimumBars: 200, parameters: "SMA(50) ve SMA(200)" },
-  { id: "fifty-two-week-breakout", name: "52 Hafta Zirve Bağlamı", shortName: "52H", description: "Kapanışın son 252 barın en yüksek değerinin %1 içinde olması.", minimumBars: 252, parameters: "252 bar en yüksek, %1 tolerans" },
+  { id: "rsi-momentum", name: "RSI Momentum", shortName: "RSI", description: "RSI(14) 55–75 aralığında ve aşırı alım eşiğinin altında kalır.", minimumBars: 15, parameters: "RSI(14): 55–75", defaultTimeframe: "Günlük" },
+  { id: "macd-cross", name: "MACD Kesişimi", shortName: "MACD", description: "MACD çizgisinin sinyal çizgisini son barda aşağıdan yukarı kesmesi.", minimumBars: 35, parameters: "EMA(12,26), sinyal(9)", defaultTimeframe: "Günlük / 4s" },
+  { id: "bollinger-squeeze", name: "Bollinger Sıkışması", shortName: "Bollinger", description: "Bant genişliğinin son 20 gözlem içindeki en düşük çeyrekte olması.", minimumBars: 40, parameters: "SMA(20), ±2σ, genişlik yüzdelik dilimi", defaultTimeframe: "Günlük" },
+  { id: "volume-breakout", name: "Hacim Eşiği", shortName: "Hacim", description: "Güncel hacmin önceki 20 bar ortalamasının en az iki katına ulaşması.", minimumBars: 21, parameters: "Hacim ≥ 2,0× SMA(20)", defaultTimeframe: "Günlük" },
+  { id: "sma-10-50-cross", name: "10/50 Ort. Kesişimi", shortName: "10/50", description: "SMA(10) çizgisinin SMA(50) çizgisini son barda aşağıdan yukarı kesmesi.", minimumBars: 51, parameters: "SMA(10) × SMA(50)", defaultTimeframe: "Günlük" },
+  { id: "golden-cross", name: "Golden Cross", shortName: "50/200", description: "SMA(50) çizgisinin SMA(200) çizgisinin üzerinde bulunması; kesişim anı ayrıca belirtilir.", minimumBars: 200, parameters: "SMA(50) ve SMA(200)", defaultTimeframe: "Günlük / Haftalık" },
+  { id: "fifty-two-week-breakout", name: "52 Hafta Zirve Bağlamı", shortName: "52H", description: "Kapanışın son 252 barın en yüksek değerinin %1 içinde olması.", minimumBars: 252, parameters: "252 bar en yüksek, %1 tolerans", defaultTimeframe: "Günlük" },
+  { id: "trend-regime", name: "Trend Rejimi", shortName: "Trend", description: "Kapanışın SMA(50) üzerinde ve SMA(50)’nin SMA(200) üzerinde olması.", minimumBars: 200, parameters: "Kapanış > SMA(50) > SMA(200)", defaultTimeframe: "Günlük / Haftalık" },
+  { id: "range-breakout", name: "20 Bar Kırılımı", shortName: "Kırılım", description: "Kapanışın önceki 20 barın en yüksek seviyesini aşması ve hacmin ortalamanın üzerinde kalması.", minimumBars: 21, parameters: "Kapanış ≥ 20B zirve, hacim ≥ 1,2×", defaultTimeframe: "Günlük / 4s" },
 ];
 
 const round = (value: number | null, digits = 2) => value === null || !Number.isFinite(value) ? null : Number(value.toFixed(digits));
@@ -165,6 +171,7 @@ export function calculateTechnicalEvidence(data: TechnicalDataSet): TechnicalEvi
     sma200: round(simpleMovingAverage(closes, 200)),
     volumeMultiple20: latestVolume !== null && priorVolumeAverage ? round(latestVolume / priorVolumeAverage) : null,
     high52w: closes.length >= 252 ? round(Math.max(...closes.slice(-252))) : null,
+    prior20High: data.bars.length >= 21 ? round(Math.max(...data.bars.slice(-21, -1).map((bar) => bar.high))) : null,
   };
 }
 
@@ -198,6 +205,8 @@ export function evaluateTechnicalModel(data: TechnicalDataSet, modelId: ScannerM
     "sma-10-50-cross": { matched: currentSma10 !== null && currentSma50 !== null && previousSma10 !== null && previousSma50 !== null && previousSma10 <= previousSma50 && currentSma10 > currentSma50, explanation: "SMA(10) ve SMA(50) için son iki bar kesişimi kontrol edildi." },
     "golden-cross": { matched: evidence.sma50 !== null && evidence.sma200 !== null && evidence.sma50 > evidence.sma200, explanation: "SMA(50) ile SMA(200) güncel konumu kontrol edildi; kesişim tarihi ayrıca hesaplanmaz." },
     "fifty-two-week-breakout": { matched: evidence.high52w !== null && latest >= evidence.high52w * 0.99, explanation: `Kapanış ${round(latest)}; 252 bar en yüksek ${evidence.high52w ?? "hesaplanamadı"}.` },
+    "trend-regime": { matched: evidence.sma50 !== null && evidence.sma200 !== null && latest > evidence.sma50 && evidence.sma50 > evidence.sma200, explanation: "Kapanış, SMA(50) ve SMA(200) göreli trend rejimi kontrol edildi." },
+    "range-breakout": { matched: evidence.prior20High !== null && latest >= evidence.prior20High && evidence.volumeMultiple20 !== null && evidence.volumeMultiple20 >= 1.2, explanation: `Kapanış ${round(latest)}; önceki 20 bar zirvesi ${evidence.prior20High ?? "hesaplanamadı"}; hacim çarpanı ${evidence.volumeMultiple20 ?? "hesaplanamadı"}.` },
   };
   const check = checks[modelId];
   return { modelId, modelName: model.name, matched: check.matched, state: check.matched ? "MATCH" : "NO_MATCH", explanation: check.explanation, evidence };
@@ -205,4 +214,14 @@ export function evaluateTechnicalModel(data: TechnicalDataSet, modelId: ScannerM
 
 export function evaluateTechnicalModels(data: TechnicalDataSet, selectedModels: ScannerModelId[]) {
   return selectedModels.map((modelId) => evaluateTechnicalModel(data, modelId));
+}
+
+export function summarizeModelIntersection(findings: ScannerFinding[]) {
+  const validFindings = findings.filter((finding) => finding.state === "MATCH" || finding.state === "NO_MATCH");
+  const matchedModelCount = validFindings.filter((finding) => finding.matched).length;
+  return {
+    eligibleModelCount: validFindings.length,
+    matchedModelCount,
+    state: validFindings.length === 0 ? "INSUFFICIENT_DATA" as const : matchedModelCount >= 2 ? "MULTI_MODEL_MATCH" as const : matchedModelCount === 1 ? "SINGLE_MODEL_MATCH" as const : "NO_MATCH" as const,
+  };
 }
