@@ -3,17 +3,21 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   ArrowDownRight,
   ArrowUpRight,
+  BarChart3,
   BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   CircleAlert,
   Clipboard,
+  Download,
   ExternalLink,
   FileCheck2,
   Filter,
+  Globe2,
   Layers3,
   Menu,
   Radar,
@@ -24,8 +28,10 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { TechnicalChartPanel } from "@/components/TechnicalChartPanel";
 import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
 import { clearPersonalResearchData, createPersonalResearchBackup, defaultAlertPreferences, loadAlertPreferences, loadWatchlist, parsePersonalResearchBackup, persistAlertPreferences, removeWatchlistItem, restorePersonalResearchBackup, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
+import { TECHNICAL_SCANNER_MODELS, type ScannerModelId } from "@/lib/technicalScanner";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -48,6 +54,25 @@ type ResearchCapability = {
   label: string;
   state: "READY" | "LICENSE_REQUIRED" | "CONFIG_REQUIRED" | "ERROR";
   detail: string;
+};
+
+type MultiAssetQuote = {
+  assetKey: "USD_TRY" | "BRENT" | "XAU_USD" | "BTC_USD";
+  symbol: string;
+  label: string;
+  price: number;
+  percentChange: number | null;
+  observedAt: string;
+  sourceLabel: string;
+  sourceUrl: string;
+  delayMinutes: number | null;
+};
+
+type MultiAssetContext = {
+  state: "READY" | "LICENSE_REQUIRED" | "CONFIG_REQUIRED" | "ERROR";
+  checkedAt: string;
+  detail: string;
+  quotes: MultiAssetQuote[];
 };
 
 type Signal = {
@@ -150,6 +175,13 @@ const marketBlankPanels = [
   ["İzleme listesi", "Belge + finansal dönem + risk", "Kullanıcı listesi oturumu bağlı değil"],
 ] as const;
 
+const multiAssetCards = [
+  { symbol: "USD/TRY", label: "Döviz", detail: "USD karşılığı Türk lirası", source: "Twelve Data · beklemede" },
+  { symbol: "BRENT", label: "Enerji", detail: "Brent spot petrol", source: "Twelve Data · beklemede" },
+  { symbol: "XAU/USD", label: "Kıymetli maden", detail: "Ons altın spot", source: "Twelve Data · beklemede" },
+  { symbol: "BTC/USD", label: "Kripto", detail: "Bitcoin referans paritesi", source: "Twelve Data · beklemede" },
+] as const;
+
 function recordCriteria(record: ResearchRecord) {
   if (record.code === "FONET") return [["Piyasa değeri", "Notta var · tarih TBD"], ["TTM satış", "Notta var · dönem TBD"], ["TTM net kâr", "Notta var · dönem TBD"], ["FAVÖK", "Notta var · kaynak TBD"], ["CFO", "Notta var · kaynak TBD"], ["20 gün hacim", "TBD"]] as const;
   if (record.lens === "Bebek V2") return [["Piyasa değeri", "Notta var · tarih TBD"], ["20 gün hacim", "TBD"], ["TTM satış", "TBD"], ["TTM net kâr", "TBD"], ["FAVÖK", "TBD"], ["CFO", "TBD"]] as const;
@@ -160,9 +192,10 @@ function recordCriteria(record: ResearchRecord) {
 const navItems = [
   ["#radar", "Radar"],
   ["#tarama", "Tarama"],
+  ["#model-masasi", "Teknik modeller"],
+  ["#piyasalar", "Piyasalar"],
   ["#izleme", "İzleme"],
-  ["#teknik", "Teknik bağlam"],
-  ["#sinyaller", "Belgeler"],
+  ["#sinyaller", "KAP belgeleri"],
   ["#kaynaklar", "Kaynaklar"],
 ] as const;
 
@@ -252,6 +285,8 @@ export default function Home() {
   const [alertPreferences, setAlertPreferences] = useState<DeviceAlertPreferences>(defaultAlertPreferences);
   const [capabilities, setCapabilities] = useState<ResearchCapability[]>([]);
   const [isRefreshingResearchStatus, setIsRefreshingResearchStatus] = useState(false);
+  const [selectedTechnicalModels, setSelectedTechnicalModels] = useState<ScannerModelId[]>(["rsi-momentum", "macd-cross"]);
+  const [multiAssetContext, setMultiAssetContext] = useState<MultiAssetContext | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -270,6 +305,10 @@ export default function Home() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Adapter durumları alınamadı")))
       .then((payload: { capabilities?: ResearchCapability[] }) => setCapabilities(payload.capabilities ?? []))
       .catch(() => setCapabilities([]));
+    fetch("/api/market-context")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Piyasa bağlamı alınamadı")))
+      .then((payload: MultiAssetContext) => setMultiAssetContext(payload))
+      .catch(() => setMultiAssetContext(null));
   }, []);
 
   const bistSource = sourceStatuses.find((source) => source.sourceKey === "BIST_PUBLIC");
@@ -289,6 +328,7 @@ export default function Home() {
     const queryMatch = !query || `${record.code} ${record.thesis} ${record.label}`.toLocaleLowerCase("tr-TR").includes(query);
     return lensMatch && queryMatch;
   }), [researchLens, researchSearch]);
+  const multiAssetQuotes = useMemo(() => new Map((multiAssetContext?.quotes ?? []).map((quote) => [quote.assetKey, quote])), [multiAssetContext]);
   const selectedResearch = researchRecords.find((record) => record.code === selectedResearchCode) ?? researchRecords[0];
 
   useEffect(() => {
@@ -315,11 +355,12 @@ export default function Home() {
   const refreshResearchStatus = async () => {
     setIsRefreshingResearchStatus(true);
     try {
-      const [sourcesResponse, capabilitiesResponse] = await Promise.all([fetch("/api/source-status"), fetch("/api/research-capabilities")]);
-      if (!sourcesResponse.ok || !capabilitiesResponse.ok) throw new Error("Kaynak durumu güncellenemedi.");
-      const [sourcesPayload, capabilitiesPayload] = await Promise.all([sourcesResponse.json() as Promise<{ sources?: SourceStatus[] }>, capabilitiesResponse.json() as Promise<{ capabilities?: ResearchCapability[] }>]);
+      const [sourcesResponse, capabilitiesResponse, marketResponse] = await Promise.all([fetch("/api/source-status"), fetch("/api/research-capabilities"), fetch("/api/market-context")]);
+      if (!sourcesResponse.ok || !capabilitiesResponse.ok || !marketResponse.ok) throw new Error("Kaynak durumu güncellenemedi.");
+      const [sourcesPayload, capabilitiesPayload, marketPayload] = await Promise.all([sourcesResponse.json() as Promise<{ sources?: SourceStatus[] }>, capabilitiesResponse.json() as Promise<{ capabilities?: ResearchCapability[] }>, marketResponse.json() as Promise<MultiAssetContext>]);
       setSourceStatuses(sourcesPayload.sources ?? []);
       setCapabilities(capabilitiesPayload.capabilities ?? []);
+      setMultiAssetContext(marketPayload);
       toast.success("Kaynak ve adapter durumu yenilendi.");
     } catch {
       toast.error("Kaynak durumunu yenilemek için bağlantı kurulamadı.");
@@ -360,6 +401,21 @@ export default function Home() {
     setAlertPreferences(defaultAlertPreferences);
     setPersonalNote("");
     toast.message("Bu cihazdaki kişisel araştırma verileri silindi.");
+  };
+
+  const toggleTechnicalModel = (modelId: ScannerModelId) => {
+    setSelectedTechnicalModels((current) => {
+      if (current.includes(modelId)) return current.filter((id) => id !== modelId);
+      if (current.length >= 3) {
+        toast.message("Aynı anda en fazla üç teknik model karşılaştırılabilir.");
+        return current;
+      }
+      return [...current, modelId];
+    });
+  };
+
+  const exportScannerCsv = () => {
+    toast.message("CSV çıktısı, tarihli BIST OHLCV kaynağı bağlandığında yalnızca doğrulanmış tarama sonuçlarını indirir.");
   };
 
   const copyResearchNote = async () => {
@@ -460,6 +516,42 @@ export default function Home() {
               {marketBlankPanels.map(([title, metric, note], index) => <article key={title} className="relative overflow-hidden rounded-2xl border border-white/12 bg-[#151a17] p-5"><div className="flex items-center justify-between gap-3"><p className="data-label">{title}</p><span className="mono rounded-md border border-white/10 bg-black/15 px-2 py-1 text-[9px] text-[#9fa99f]">BAĞLI DEĞİL</span></div><p className="mt-5 text-sm font-semibold text-white">{metric}</p><p className="mt-2 min-h-[40px] text-xs leading-5 text-[#a8b2a8]">{note}</p><div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-3 text-[10px] text-[#7f8a7f]"><Layers3 size={13}/>{index === 3 ? "Liste ≠ alım listesi" : "Tarih/saatli veri bekleniyor"}</div></article>)}
             </div>
             <div className="mt-3 flex items-start gap-3 rounded-xl border border-[#d9c27d]/20 bg-[#d9c27d]/[.055] px-4 py-3 text-xs leading-5 text-[#d8cfb3]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#ead38e]"/><p><span className="font-semibold text-[#f0ddac]">Kâr kalitesi filtresi:</span> yatırım faaliyeti, varlık satışı veya benzeri tek seferlik gelirler; FAVÖK, faaliyet nakit akışı ve tekrarlayan operasyonel performanstan ayrıştırılmadan puanlamaya olumlu katkı yapmaz.</p></div>
+          </div>
+        </section>
+
+        <section id="model-masasi" className="relative overflow-hidden bg-[#121713] px-5 py-20 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 terminal-grid opacity-20" />
+          <div className="relative mx-auto max-w-[1240px]">
+            <div className="flex flex-col justify-between gap-6 border-b border-white/12 pb-8 lg:flex-row lg:items-end">
+              <div className="max-w-2xl"><p className="eyebrow">02 / Teknik model masası</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">Modeli seçin,<br/><em className="text-[#aeb8af]">kanıtı görün.</em></h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">Her model yalnızca kaynak URL’si, gözlem zamanı ve yeterli OHLCV geçmişi varsa çalışır. Eşleşme, teknik bir araştırma bulgusudur; alım-satım talimatı değildir.</p></div>
+              <div className="rounded-2xl border border-[#8ee19b]/20 bg-[#8ee19b]/[.06] px-4 py-3"><p className="data-label text-[#b7efbf]">Seçili model</p><p className="mono mt-1 text-xl text-white">{selectedTechnicalModels.length} / 3</p></div>
+            </div>
+
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {TECHNICAL_SCANNER_MODELS.map((model) => {
+                const selected = selectedTechnicalModels.includes(model.id);
+                return <button key={model.id} onClick={() => toggleTechnicalModel(model.id)} aria-pressed={selected} className={`group min-h-[174px] rounded-2xl border p-5 text-left transition ${selected ? "border-[#8ee19b]/45 bg-[#8ee19b]/[.09] shadow-[0_0_0_1px_rgba(142,225,155,.08)]" : "border-white/12 bg-[#161b18] hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a201d]"}`}><div className="flex items-start justify-between gap-4"><span className={`flex h-9 w-9 items-center justify-center rounded-xl border ${selected ? "border-[#8ee19b]/35 bg-[#8ee19b]/15 text-[#b7efbf]" : "border-white/10 bg-black/15 text-[#a8b4a8]"}`}>{model.id === "macd-cross" ? <Activity size={18}/> : model.id === "volume-breakout" ? <BarChart3 size={18}/> : <Layers3 size={18}/>}</span><span className={`mono rounded-md border px-2 py-1 text-[9px] ${selected ? "border-[#8ee19b]/30 text-[#b7efbf]" : "border-white/10 text-[#899389]"}`}>{selected ? "SEÇİLİ" : "MODEL"}</span></div><h3 className="mt-5 text-sm font-bold text-white">{model.name}</h3><p className="mt-2 min-h-[38px] text-xs leading-5 text-[#a9b3a9]">{model.description}</p><div className="mt-4 flex items-center justify-between border-t border-white/10 pt-3"><span className="mono text-[9px] text-[#8ee19b]">{model.parameters}</span><span className="mono text-[9px] text-[#7d897d]">min. {model.minimumBars} bar</span></div></button>;
+              })}
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
+              <article className="rounded-2xl border border-white/12 bg-[#101411] p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label">Tarama kuyruğu</p><h3 className="serif-title mt-2 text-3xl text-white">OHLCV doğrulaması bekleniyor</h3></div><button onClick={exportScannerCsv} className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[.035] px-3.5 py-2.5 text-xs font-semibold text-[#d7ddd7] transition hover:bg-white/10"><Download size={15}/> CSV yapısı</button></div><div className="mt-5 rounded-xl border border-dashed border-[#8ab5e3]/30 bg-[#8ab5e3]/[.045] p-4"><p className="text-sm font-semibold text-[#d4e5f2]">Gerçek sonuç üretilmedi.</p><p className="mt-2 text-xs leading-5 text-[#a7bdcf]">Seçili modeller, tarihli BIST mum-hacim verisi ile çalışacak biçimde hazırdır. Lisanslı sağlayıcı bağlantısı kurulmadan; fiyat, RSI, MACD, hacim çarpanı, eşleşen hisse veya performans sonucu gösterilmez.</p></div><div className="mt-5 flex flex-wrap gap-2">{selectedTechnicalModels.length ? selectedTechnicalModels.map((id) => <span key={id} className="rounded-lg border border-[#8ee19b]/25 bg-[#8ee19b]/[.08] px-2.5 py-1.5 text-[10px] font-semibold text-[#b7efbf]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>) : <span className="text-xs text-[#929d92]">Karşılaştırmak için model seçin.</span>}</div></article>
+              <article className="rounded-2xl border border-[#d9c27d]/20 bg-[#17150f] p-6"><p className="data-label text-[#ead38e]">Sonuç yayın protokolü</p><div className="mt-5 space-y-3 text-xs leading-5 text-[#c8c2ad]"><p><span className="font-semibold text-white">01 · Kaynak</span> Sağlayıcı adı ve kaynak URL’si kaydedilir.</p><p><span className="font-semibold text-white">02 · Zaman</span> Bar kapanışı, gözlem anı ve veri gecikmesi ayrı yazılır.</p><p><span className="font-semibold text-white">03 · Hesap</span> Model parametreleri her sonuçla birlikte gösterilir.</p><p><span className="font-semibold text-white">04 · Sınır</span> Sonuç teknik araştırma bağlamıdır; kişisel öneri değildir.</p></div></article>
+            </div>
+            <div className="mt-4"><TechnicalChartPanel symbol={selectedResearch?.code ?? "SEMBOL"} bars={[]} sourceLabel="BIST OHLCV adapteri · lisanslı kaynak bekleniyor" observedAt={null} delayMinutes={15} /></div>
+          </div>
+        </section>
+
+        <section id="piyasalar" className="relative overflow-hidden bg-[#101411] px-5 py-20 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 noise opacity-60" />
+          <div className="relative mx-auto max-w-[1240px]">
+            <div className="flex flex-col justify-between gap-6 border-b border-white/12 pb-8 md:flex-row md:items-end"><div className="max-w-2xl"><p className="eyebrow">Piyasa bağlamı</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">Tek varlık değil,<br/><em className="text-[#aeb8af]">veri rejimini izleyin.</em></h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">Döviz, Brent, ons altın ve kripto kartları API anahtarı bağlandığında kaynak, gözlem zamanı ve gecikme etiketiyle yenilenir.</p></div><Globe2 className="hidden h-10 w-10 text-[#8ab5e3] md:block"/></div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{multiAssetCards.map((asset) => {
+              const quote = multiAssetQuotes.get(asset.symbol === "USD/TRY" ? "USD_TRY" : asset.symbol === "XAU/USD" ? "XAU_USD" : asset.symbol === "BTC/USD" ? "BTC_USD" : "BRENT");
+              const ready = multiAssetContext?.state === "READY" && quote;
+              return <article key={asset.symbol} className="relative overflow-hidden rounded-2xl border border-white/12 bg-[#161b18] p-5"><div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-[#8ab5e3]/10 blur-2xl"/><div className="relative flex items-start justify-between gap-3"><div><p className="data-label">{asset.label}</p><p className="mono mt-4 text-2xl text-white">{asset.symbol}</p></div><span className={`rounded-md border px-2 py-1 mono text-[9px] ${ready ? "border-[#8ee19b]/25 bg-[#8ee19b]/[.08] text-[#b7efbf]" : "border-[#8ab5e3]/25 bg-[#8ab5e3]/[.08] text-[#aad0ef]"}`}>{ready ? "KAYNAKLI" : "API BEKLEMEDE"}</span></div><p className="relative mt-4 text-xs text-[#c7cec7]">{asset.detail}</p><div className="relative mt-5 flex items-end justify-between gap-3"><p className="mono text-xl text-white">{ready ? quote.price.toLocaleString("tr-TR", { maximumFractionDigits: 4 }) : "—"}</p>{ready && quote.percentChange !== null && <p className={`mono text-xs ${quote.percentChange >= 0 ? "text-[#8ee19b]" : "text-[#f0aaaa]"}`}>{quote.percentChange >= 0 ? "+" : ""}{quote.percentChange.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}%</p>}</div><div className="relative mt-4 border-t border-white/10 pt-3"><p className="text-[10px] leading-4 text-[#8d9d8d]">{ready ? quote.sourceLabel : asset.source}</p><p className="mt-1 mono text-[9px] text-[#697669]">{ready ? `GÖZLEM · ${formatSourceTime(quote.observedAt)}` : `DURUM · ${multiAssetContext?.state ?? "BAĞLI DEĞİL"}`}</p></div></article>;
+            })}</div>
+            <p className="mt-5 text-[10px] leading-4 text-[#859085]">{multiAssetContext?.detail ?? "Kartlar, sağlayıcı kullanım koşulları doğrulanıp güvenli sunucu anahtarı eklendiğinde sayısal değer üretir. Kaynak veya zaman yoksa boş durum korunur."}</p>
           </div>
         </section>
 

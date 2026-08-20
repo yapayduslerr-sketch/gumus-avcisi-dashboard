@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { getSourceStatuses, runScheduledUpdate } from "./dataPipeline";
 import { authenticateRequest } from "./_core/sdk";
 import { probeLicensedAdapter } from "./licensedAdapters";
+import { fetchMultiAssetQuotes, getMultiAssetReadiness } from "./multiAssetAdapter";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,8 +31,14 @@ async function startServer() {
       BIST_MARKET: "Tarihli BIST fiyat-hacim adapteri",
     } as const;
     const probes = await Promise.all([probeLicensedAdapter("KAP_REST"), probeLicensedAdapter("BIST_MARKET")]);
-    const capabilities = probes.map((probe) => ({ sourceKey: probe.sourceKey, label: labels[probe.sourceKey], state: probe.state, detail: probe.detail, checkedAt: probe.checkedAt }));
+    const capabilities: { sourceKey: string; label: string; state: "READY" | "LICENSE_REQUIRED" | "CONFIG_REQUIRED" | "ERROR"; detail: string; checkedAt: string }[] = probes.map((probe) => ({ sourceKey: probe.sourceKey, label: labels[probe.sourceKey], state: probe.state, detail: probe.detail, checkedAt: probe.checkedAt }));
+    const multiAsset = getMultiAssetReadiness();
+    capabilities.push({ sourceKey: "TWELVE_DATA", label: "Döviz, Brent, ons altın ve kripto adapteri", state: multiAsset.ready ? "CONFIG_REQUIRED" : "LICENSE_REQUIRED", detail: multiAsset.ready ? "Twelve Data anahtarı var; sembol eşlemesi ve canlı çağrı doğrulaması bekleniyor." : `Eksik: ${multiAsset.missingEnv.join(", ")}`, checkedAt: new Date().toISOString() });
     res.json({ mode: "phased", capabilities });
+  });
+
+  app.get("/api/market-context", async (_req, res) => {
+    res.json(await fetchMultiAssetQuotes());
   });
 
   // This endpoint is deliberately idempotent and ignores request-body fields.

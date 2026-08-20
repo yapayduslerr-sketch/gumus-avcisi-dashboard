@@ -112,3 +112,26 @@
 
 - [x] Manus alan adındaki `ERR_SSL_PROTOCOL_ERROR` hatasını eski erişim kanalı olarak belgele; kullanıcıyı Vercel HTTPS adresine yönlendir.
 - [x] Güncel A+B araştırma geliştirmelerini GitHub bağlı Vercel production dağıtımına aktar ve canlı URL’de doğrula; Vercel ana sayfa 200 ve `/api/research-capabilities` JSON 200 dönüyor.
+
+## Teknik tarama, piyasa ve KAP çalışma alanı genişletmesi
+
+- [x] Kaynak URL’si, gözlem zamanı ve OHLCV bütünlüğü geçerli değilse sonuç üretmeyen teknik tarama çekirdeğini ekle; RSI, MACD, Bollinger, hacim eşiği, 10/50 kesişimi, 50/200 bağlamı ve 52-hafta zirve bağlamı için birim testleri yaz.
+- [x] Özgün mobil teknik model seçim masası ile döviz, Brent, ons altın ve kripto için kaynak-etiketli API bekleme kartlarını uygula; gerçek veri gelene kadar sayısal sonuç gösterme.
+- [ ] Özgün Gümüş Avcısı tasarım diliyle mobil odaklı Ana Sayfa, Sinyaller, Piyasalar ve KAP çalışma alanlarını ekle; üçüncü taraf ürünün görsel kimliğini veya metinlerini kopyalama.
+- [ ] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
+- [ ] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
+- [ ] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma.
+- [ ] Sembol detay grafiği için tarihli mum, hacim, indikatör katmanı ve kaynak/başarı/hata zamanını gösteren özgün ekranı uygula.
+- [ ] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru.
+- [ ] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
+- [ ] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut.
+- [ ] Lisanslı BIST OHLCV ile KAP bildirimleri bağlandığında tarama sonuçları ve KAP kartlarını yalnızca tarihli, kaynak URL’li ve izlenebilir kayıtlarla doldur.
+- [ ] Yeni teknik model hesapları, veri geçerliliği, CSV çıktısı ve boş/veri hatası durumları için Vitest kapsamı ekle; mobil görünüm, TypeScript ve production build doğrulamasını tamamla.
+
+## Kullanıcının seçtiği kademeli tam-veri hedefi
+
+- [ ] BIST teknik tarama için en az 15 dakika gecikmeli, lisansı ve kullanım koşulları doğrulanmış OHLCV sağlayıcısını seç; sembol kapsamı, güncelleme sıklığı, gecikme ve ticari kullanım koşullarını kaydet.
+- [x] Döviz, Brent, ons altın ve kripto kartları için Twelve Data API kaynağını, sembol eşlemesini, gözlem zamanını ve veri lisansı beyanını doğrula; her karta kaynak durumunu bağla. Canlı aktivasyon `TWELVE_DATA_API_KEY` bekliyor.
+- [ ] KAP için resmî/lisanslı makine-okunur bildirim kaynağı seçeneğini ve maliyet/erişim gereksinimlerini kullanıcıya sun; kaynak seçilene kadar KAP kartlarını taranabilir bekleme durumunda tut.
+- [ ] Seçilen veri kaynaklarının anahtarlarını yalnızca güvenli ortam değişkenleriyle yapılandır; istemciye anahtar veya sağlayıcı ham yanıtı sızdırma.
+- [ ] Teknik tarama ve çoklu-varlık veri yenilemesini sağlayıcı sözleşmesi, Vercel çalışma sınırları ve idempotent güncelleme mimarisiyle uyumlu uygula.
