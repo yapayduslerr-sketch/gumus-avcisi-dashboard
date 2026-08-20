@@ -150,3 +150,9 @@
 - [x] Forinvest/dxFeed teklif isteğinde teknik tarama, kaynak URL’si, gözlem zamanı, 250+ günlük bar ve sınırlı web gösterimi kullanım senaryosunu açıkça belirt; gönderime hazır teklif metnini `docs/bist-ohclv-provider-request.md` içinde oluştur.
 - [ ] Sağlayıcı seçildikten sonra `BIST_MARKET_API_BASE_URL`, `BIST_MARKET_API_KEY`, sembol eşleme ve gecikme alanlarını güvenli biçimde yapılandır; ham sağlayıcı yanıtını istemciye geçirme.
 - [ ] Tarihli BIST OHLCV ile teknik model kesişimi, sembol grafiği, artan/azalan ve hacim lideri sonuçlarını kaynak/zaman görünürlüğüyle etkinleştir.
+
+## SSL/TLS hatalı alan adını kullanıcı akışından çıkarma
+
+- [x] `gumusdash-jhnr3rxf.manus.space` alan adını uygulama içi metinler, paylaşım notları ve kullanıcıya sunulan erişim yönlendirmelerinden kaldır; bu alan adını hiçbir kullanıcı akışında çalışma adresi olarak gösterme.
+- [x] `https://gumus-avcisi-live-data.vercel.app/` adresini tek doğrulanmış çalışma URL’si olarak belgelerde ve kullanıcı iletişimi şablonlarında sabitle.
+- [x] Vercel URL’sinin ana sayfa ile piyasa/kaynak API uç noktalarında HTTPS 200 döndüğünü yeniden doğrula; hata veren Manus alan adını platform sertifika sorunu olarak açıkça ayır.
