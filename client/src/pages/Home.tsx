@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -100,10 +101,59 @@ const sources = [
   { tag: "KAP", name: "BIST şirket dizini", detail: "İncelenen görüntüde 748 şirketlik birincil şirket dizini bulunur; güvenlik türü ayrıca filtrelenmelidir.", url: "https://kap.org.tr/en/bist-sirketler" },
 ];
 
+type ResearchLens = "Kalite 100" | "Bebek V2" | "Proje";
+type ResearchRecord = {
+  code: string;
+  lens: ResearchLens;
+  score?: number;
+  label: string;
+  thesis: string;
+  metrics: { label: string; value: string }[];
+  dataState: "Tarih teyidi gerekli" | "Kaynak teyidi gerekli" | "Belge kuyruğu";
+  risk: string;
+};
+
+const researchRecords: ResearchRecord[] = [
+  { code: "INDES", lens: "Kalite 100", score: 86, label: "Üst sıra · kullanıcı çalışma notu", thesis: "Satış, FAVÖK ve net kâr trendi ile net nakit ve değerleme alanlarının birlikte incelendiği çalışma kaydı.", metrics: [{ label: "ROIC", value: "%26,4" }, { label: "F/K", value: "8,3" }, { label: "FD/FAVÖK", value: "1,5" }, { label: "Net nakit", value: "644 mn TL" }], dataState: "Tarih teyidi gerekli", risk: "Paylaşılan notta rakamların dönem sonu, konsolidasyon kapsamı ve tek seferlik kalemlerden arındırma durumu belirtilmemiştir." },
+  { code: "FONET", lens: "Kalite 100", score: 85, label: "Üst sıra · kullanıcı çalışma notu", thesis: "Paylaşılan çalışmada satış, FAVÖK, net kâr ve faaliyet nakit akışının birlikte büyümesi ile net nakit konumu öne çıkarılmıştır.", metrics: [{ label: "Satış büyümesi", value: "%40" }, { label: "Kâr büyümesi", value: "%47" }, { label: "ROE", value: "%16,6" }, { label: "Net borç", value: "-104 mn TL" }], dataState: "Tarih teyidi gerekli", risk: "Büyümenin hangi raporlama dönemine ait olduğu ve nakit akışının sürdürülebilirliği KAP finansallarıyla ayrıca doğrulanmalıdır." },
+  { code: "SAYAS", lens: "Kalite 100", score: 84, label: "Üst sıra · kullanıcı çalışma notu", thesis: "Paylaşılan 100 puanlık çalışma listesinde ilk üçte yer alır; metrik kırılımı henüz kaynak belgesiyle eşlenmemiştir.", metrics: [{ label: "Skor", value: "84 / 100" }, { label: "Metrik kırılımı", value: "TBD" }, { label: "KAP eşleşmesi", value: "TBD" }], dataState: "Kaynak teyidi gerekli", risk: "Skorun dayanakları, finansal dönem ve değerleme tarihi görünür hale gelmeden karşılaştırılabilir kabul edilmemelidir." },
+  { code: "FRMPL", lens: "Bebek V2", score: 90, label: "V2 ekranı · kullanıcı çalışma notu", thesis: "Fiili dolaşım ve dolaşımdaki piyasa değeri merceğiyle ele alınan çalışma kaydı.", metrics: [{ label: "Piyasa değeri", value: "5,36 mr TL" }, { label: "Fiili dolaşım", value: "%25,0" }, { label: "Dolaşım PD", value: "1,34 mr TL" }, { label: "F/K", value: "22,6" }], dataState: "Tarih teyidi gerekli", risk: "Fiili dolaşım verisi ve çarpanlar zamanla değişir; güncel kaynak tarihi olmadan canlı filtre sonucu gibi okunmamalıdır." },
+  { code: "MOPAS", lens: "Bebek V2", score: 89, label: "V2 ekranı · kullanıcı çalışma notu", thesis: "Mağaza büyümesi ve net nakit notuyla izleme havuzuna alınmış çalışma kaydı.", metrics: [{ label: "Piyasa değeri", value: "7,81 mr TL" }, { label: "Fiili dolaşım", value: "%21,0" }, { label: "Dolaşım PD", value: "1,64 mr TL" }, { label: "F/K", value: "22,6" }], dataState: "Tarih teyidi gerekli", risk: "Büyüme yatırımı, marj ve net nakit ifadesi finansal dönem ile açıklama kaynağına bağlanmalıdır." },
+  { code: "EBEBK", lens: "Bebek V2", score: 87, label: "V2 ekranı · kullanıcı çalışma notu", thesis: "Operasyon ve e-ticaret büyümesi notuyla izleme havuzuna alınmış çalışma kaydı.", metrics: [{ label: "Piyasa değeri", value: "12,89 mr TL" }, { label: "Fiili dolaşım", value: "%26,1" }, { label: "Dolaşım PD", value: "3,36 mr TL" }, { label: "FD/FAVÖK", value: "2,8" }], dataState: "Tarih teyidi gerekli", risk: "İşletme sermayesi, stok dönüşümü ve dönemsel marj değişimleri ayrıca değerlendirilmelidir." },
+  { code: "PKART", lens: "Bebek V2", score: 84, label: "V2 ekranı · kullanıcı çalışma notu", thesis: "Güçlü kâr dönüşümü ve ROIC notuyla izleme havuzuna alınmış çalışma kaydı.", metrics: [{ label: "Piyasa değeri", value: "2,91 mr TL" }, { label: "Fiili dolaşım", value: "%33,7" }, { label: "Dolaşım PD", value: "0,98 mr TL" }, { label: "ROIC", value: "%25,7" }], dataState: "Tarih teyidi gerekli", risk: "Likidite, sürdürülebilir nakit üretimi ve proje bazlı gelir görünürlüğü ayrı belge kontrolleri gerektirir." },
+  ...["KRSTL", "SAYAS", "ORZAX", "SAFKR", "LILAK", "CWENE"].map((code) => ({ code, lens: "Proje" as const, label: "Proje/katalizör kuyruğu", thesis: "Somut yatırım, kapasite artışı, yeni pazar veya büyük proje potansiyeli için belge taramasına alınmış kod.", metrics: [{ label: "Katalizör belgesi", value: "TBD" }, { label: "Ölçek etkisi", value: "TBD" }, { label: "Likidite kontrolü", value: "TBD" }], dataState: "Belge kuyruğu" as const, risk: "Katalizörün şirket ölçeğine etkisi, finansman kaynağı ve gerçekleşme takvimi KAP/IR belgesi olmadan puanlanmaz." })),
+];
+
+const scoreParts = QUALITY_SCORE_PARTS;
+
+const babyScreenPolicy = [
+  ["Piyasa değeri", "1–15 mr TL", "Ölçek filtresi"],
+  ["Likidite", "20 gün ort. ≥40 mn TL", "İşlem hacmi"],
+  ["TTM satış", "Son 4 dönemde artış", "Dönem bazlı"],
+  ["TTM net kâr", "Son 4 dönemde artış", "Dönem bazlı"],
+  ["FAVÖK", "Pozitif", "Faaliyet kârlılığı"],
+  ["Faaliyet nakit akışı", "Pozitif", "CFO"],
+] as const;
+
+const marketBlankPanels = [
+  ["Artanlar", "Gün içi fiyat değişimi", "Tarih/saatli BIST fiyat akışı bağlı değil"],
+  ["Azalanlar", "Gün içi fiyat değişimi", "Tarih/saatli BIST fiyat akışı bağlı değil"],
+  ["Hacim liderleri", "20 gün / gün içi hacim", "Hacim adapteri bağlı değil"],
+  ["İzleme listesi", "Belge + finansal dönem + risk", "Kullanıcı listesi oturumu bağlı değil"],
+] as const;
+
+function recordCriteria(record: ResearchRecord) {
+  if (record.code === "FONET") return [["Piyasa değeri", "Notta var · tarih TBD"], ["TTM satış", "Notta var · dönem TBD"], ["TTM net kâr", "Notta var · dönem TBD"], ["FAVÖK", "Notta var · kaynak TBD"], ["CFO", "Notta var · kaynak TBD"], ["20 gün hacim", "TBD"]] as const;
+  if (record.lens === "Bebek V2") return [["Piyasa değeri", "Notta var · tarih TBD"], ["20 gün hacim", "TBD"], ["TTM satış", "TBD"], ["TTM net kâr", "TBD"], ["FAVÖK", "TBD"], ["CFO", "TBD"]] as const;
+  if (record.lens === "Kalite 100") return scoreParts.map(([label]) => [label, "Alt kırılım TBD"] as const);
+  return [["Katalizör belgesi", "TBD"], ["Finansman", "TBD"], ["Ölçek etkisi", "TBD"]] as const;
+}
+
 const navItems = [
   ["#radar", "Radar"],
-  ["#sinyaller", "Sinyaller"],
-  ["#metodoloji", "Metodoloji"],
+  ["#tarama", "Tarama"],
+  ["#teknik", "Teknik bağlam"],
+  ["#sinyaller", "Belgeler"],
   ["#kaynaklar", "Kaynaklar"],
 ] as const;
 
@@ -170,12 +220,24 @@ function formatSourceTime(value: string | null) {
   return new Date(value).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function ResearchStateBadge({ state }: { state: ResearchRecord["dataState"] }) {
+  const styles: Record<ResearchRecord["dataState"], string> = {
+    "Tarih teyidi gerekli": "border-[#d9c27d]/30 bg-[#d9c27d]/10 text-[#ead38e]",
+    "Kaynak teyidi gerekli": "border-[#e6a987]/30 bg-[#e6a987]/10 text-[#efb795]",
+    "Belge kuyruğu": "border-[#8ab5e3]/30 bg-[#8ab5e3]/10 text-[#aad0ef]",
+  };
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-[9px] uppercase tracking-[.08em] ${styles[state]}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{state}</span>;
+}
+
 export default function Home() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"Tümü" | Signal["kind"]>("Tümü");
   const [openCode, setOpenCode] = useState<string | null>("TUPRS");
   const [menuOpen, setMenuOpen] = useState(false);
   const [sourceStatuses, setSourceStatuses] = useState<SourceStatus[]>([]);
+  const [researchLens, setResearchLens] = useState<ResearchLens | "Tümü">("Tümü");
+  const [researchSearch, setResearchSearch] = useState("");
+  const [selectedResearchCode, setSelectedResearchCode] = useState("INDES");
 
   useEffect(() => {
     let active = true;
@@ -196,6 +258,14 @@ export default function Home() {
     const matchFilter = filter === "Tümü" || signal.kind === filter;
     return matchQuery && matchFilter;
   }), [search, filter]);
+
+  const filteredResearch = useMemo(() => researchRecords.filter((record) => {
+    const query = researchSearch.trim().toLocaleLowerCase("tr-TR");
+    const lensMatch = researchLens === "Tümü" || record.lens === researchLens;
+    const queryMatch = !query || `${record.code} ${record.thesis} ${record.label}`.toLocaleLowerCase("tr-TR").includes(query);
+    return lensMatch && queryMatch;
+  }), [researchLens, researchSearch]);
+  const selectedResearch = researchRecords.find((record) => record.code === selectedResearchCode) ?? researchRecords[0];
 
   const copyResearchNote = async () => {
     const text = "Gümüş Avcısı | Araştırma notu\nReferans: 18.08.2026 GMT+3\nBIST 100: piyasa değeri ağırlıklı fiyat endeksi\nKAP verileri için bildirim tarihi, finansal dönem ve gecikme ayrı tutulur.\nBu içerik yatırım tavsiyesi değildir.";
@@ -230,7 +300,7 @@ export default function Home() {
           <div className="noise absolute inset-0 -z-10" />
           <div className="mx-auto max-w-[1240px]">
             <div className="intro-rise flex flex-wrap items-center justify-between gap-4 border-b border-white/12 pb-5">
-              <div className="flex items-center gap-3"><img src={LOGO} alt="Gümüş Avcısı radar simgesi" className="h-11 w-11 rounded-xl border border-white/12 bg-[#121513]/60 p-1.5 object-contain" /><div><p className="serif-title text-xl leading-none text-white">Gümüş Avcısı</p><p className="mono mt-1.5 text-[9px] tracking-[.19em] text-[#8ee19b]">BIST ARAŞTIRMA MASASI</p></div></div>
+              <div className="brand-seal flex items-center gap-3"><img src={LOGO} alt="Gümüş Avcısı radar simgesi" className="h-11 w-11 rounded-xl border border-white/12 bg-[#121513]/60 p-1.5 object-contain" /><div><p className="serif-title brand-wordmark text-xl leading-none text-white">Gümüş Avcısı</p><p className="mono mt-1.5 text-[9px] tracking-[.19em] text-[#aeb8af]">BIST ARAŞTIRMA MASASI</p></div></div>
               <div className="flex flex-wrap items-center gap-3"><span className="eyebrow flex items-center gap-2"><Radar size={14} />Radar aktif</span><span className="h-px w-8 bg-[#8ee19b]/45" /><span className="data-label text-[#b6beb6]">{bistSource ? <SourceStatusBadge status={bistSource.status} /> : "BIST durum kontrolü bekleniyor"}</span></div>
             </div>
             <div className="grid gap-10 pt-9 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-end">
@@ -253,6 +323,48 @@ export default function Home() {
             <div className="mt-16 grid border-y border-white/12 sm:grid-cols-2 xl:grid-cols-4">
               {[['XU100','Piyasa değeri ağırlıklı fiyat endeksi'],['TRY','Resmî endeks para birimi'],['748','KAP dizin görüntüsündeki şirket sayısı'],['TBD','Eksik veri, eksik olarak kalır']].map(([value,label], index) => <div key={value} className={`py-5 ${index ? 'sm:border-l sm:border-white/12 sm:pl-6 xl:pl-8' : ''}`}><p className={`mono text-xl ${value === 'TBD' ? 'text-[#d9c27d]' : 'text-[#f0f1ed]'}`}>{value}</p><p className="mt-1 max-w-[180px] text-xs leading-5 text-[#b5bdb5]">{label}</p></div>)}
             </div>
+          </div>
+        </section>
+
+        <section id="tarama" className="bg-[#0f1311] px-5 py-20 sm:px-8 lg:px-10">
+          <div className="mx-auto max-w-[1240px]">
+            <div className="flex flex-col justify-between gap-7 border-b border-white/12 pb-8 lg:flex-row lg:items-end">
+              <div className="max-w-2xl"><p className="eyebrow">01 / Tarama çalışma alanı</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">Sıralama değil,<br/><em className="text-[#aeb8af]">izlenebilir araştırma.</em></h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">Paylaştığınız 100 puan, Bebek V2 ve proje notları tek ekranda tutulur. Her kartın yanında veri durumu gösterilir; tarihli KAP/IR belgesi olmayan satırlar canlı tarama sonucu gibi sunulmaz.</p></div>
+              <div className="flex flex-col gap-2 sm:flex-row"><label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7f8a80]"/><input value={researchSearch} onChange={(event) => setResearchSearch(event.target.value)} placeholder="Kod veya araştırma notu ara" className="h-10 w-full rounded-xl border border-white/12 bg-[#171c19] pl-9 pr-3 text-sm text-white outline-none placeholder:text-[#687168] focus:border-[#8ee19b]/55 sm:w-[220px]" /></label></div>
+            </div>
+
+            <div className="mt-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Tarama türü">
+              {(["Tümü", "Kalite 100", "Bebek V2", "Proje"] as const).map((lens) => <button key={lens} onClick={() => setResearchLens(lens)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${researchLens === lens ? "border-[#8ee19b]/45 bg-[#8ee19b]/12 text-[#b7efbf]" : "border-white/10 bg-white/[.035] text-[#aeb7ae] hover:border-white/25 hover:text-white"}`}>{lens === "Tümü" ? "Tüm çalışma notları" : lens}</button>)}
+            </div>
+
+            <div className="data-rail mt-6 grid gap-4 px-4 py-4 lg:grid-cols-[170px_minmax(0,1fr)]">
+              <div><p className="data-label">Bebek hisse V1 filtresi</p><p className="mt-2 text-xs leading-5 text-[#c9d1c9]">Kural seti görünürdür; her uygulamada veri tarihi ve finansal dönem kaydedilmelidir.</p></div>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{babyScreenPolicy.map(([label, rule, basis]) => <div key={label} className="rounded-xl border border-white/10 bg-white/[.025] px-3 py-2.5"><p className="text-[10px] text-[#9da89d]">{label}</p><p className="mt-1 text-xs font-semibold text-[#ecf0eb]">{rule}</p><p className="mt-1 mono text-[9px] text-[#7e8a7e]">{basis}</p></div>)}</div>
+            </div>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="grid gap-3 md:grid-cols-2">
+                {filteredResearch.length ? filteredResearch.map((record) => <button key={`${record.lens}-${record.code}`} onClick={() => setSelectedResearchCode(record.code)} className={`group rounded-2xl border p-5 text-left transition ${selectedResearchCode === record.code ? "border-[#8ee19b]/45 bg-[#8ee19b]/[.09] shadow-[0_0_0_1px_rgba(142,225,155,.08)]" : "border-white/12 bg-[#161b18] hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a201d]"}`}>
+                  <div className="flex items-start justify-between gap-3"><div><p className="mono text-lg tracking-[.08em] text-white">{record.code}</p><p className="mt-1 text-[11px] text-[#8ee19b]">{record.lens}</p></div>{typeof record.score === "number" ? <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-right"><p className="mono text-sm text-white">{record.score}</p><p className="text-[8px] uppercase tracking-[.12em] text-[#8f9a8f]">/100 not</p></div> : <Layers3 className="h-5 w-5 text-[#8ab5e3]" />}</div>
+                  <p className="mt-5 min-h-[40px] text-xs leading-5 text-[#c7cec7]">{record.thesis}</p>
+                  <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-3"><ResearchStateBadge state={record.dataState}/><ChevronRight className={`h-4 w-4 shrink-0 text-[#8ee19b] transition-transform ${selectedResearchCode === record.code ? "rotate-90" : "group-hover:translate-x-1"}`} /></div>
+                </button>) : <div className="rounded-2xl border border-dashed border-white/15 bg-white/[.025] p-10 text-center md:col-span-2"><Search className="mx-auto h-6 w-6 text-[#6f796f]"/><p className="mt-3 text-sm text-[#bdc5bd]">Bu mercekte eşleşen çalışma notu yok.</p></div>}
+              </div>
+
+              {selectedResearch && <aside className="sticky top-[88px] h-fit overflow-hidden rounded-2xl border border-white/12 bg-[#1a201c] p-6">
+                <div className="flex items-start justify-between gap-4"><div><p className="data-label">Araştırma kartı</p><h3 className="mono mt-3 text-3xl tracking-[.08em] text-white">{selectedResearch.code}</h3><p className="mt-1 text-xs text-[#8ee19b]">{selectedResearch.label}</p></div>{typeof selectedResearch.score === "number" && <div className="rounded-xl border border-[#8ee19b]/20 bg-[#8ee19b]/[.08] px-3 py-2 text-right"><p className="mono text-xl text-[#b7efbf]">{selectedResearch.score}<span className="text-xs">/100</span></p><p className="mt-1 text-[8px] uppercase tracking-[.13em] text-[#a3b2a4]">çalışma notu</p></div>}</div>
+                <p className="mt-6 text-sm leading-6 text-[#c8d0c8]">{selectedResearch.thesis}</p>
+                <div className="mt-5 grid grid-cols-2 gap-2">{selectedResearch.metrics.map((metric) => <div key={metric.label} className="rounded-xl border border-white/10 bg-black/15 p-3"><p className="text-[10px] leading-4 text-[#9aa59a]">{metric.label}</p><p className="mono mt-1 text-sm text-white">{metric.value}</p></div>)}</div>
+                <div className="mt-5 border-t border-white/10 pt-4"><p className="data-label">Kriter kanıtı</p><div className="mt-3 grid grid-cols-2 gap-2">{recordCriteria(selectedResearch).map(([label, state]) => <div key={label} className="rounded-lg border border-white/8 bg-white/[.025] px-2.5 py-2"><p className="text-[9px] text-[#a7b0a7]">{label}</p><p className={`mt-1 text-[10px] ${state.includes("TBD") ? "text-[#d9c27d]" : "text-[#b6c2b6]"}`}>{state}</p></div>)}</div></div>
+                <div className="mt-5 border-t border-white/10 pt-4"><ResearchStateBadge state={selectedResearch.dataState}/><p className="mt-3 text-xs leading-5 text-[#d5b278]"><span className="font-semibold text-[#ead38e]">Kontrol notu: </span>{selectedResearch.risk}</p></div>
+                <p className="mt-5 border-t border-white/10 pt-4 text-[10px] leading-4 text-[#8e998e]">Bu kartlar kullanıcının paylaştığı tarihsiz çalışma notlarından oluşturulmuştur. Güncel kaynak/raporlama dönemi bağlanana kadar tarama sonucu veya yatırım önerisi değildir.</p>
+              </aside>}
+            </div>
+
+            <div className="mt-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {marketBlankPanels.map(([title, metric, note], index) => <article key={title} className="relative overflow-hidden rounded-2xl border border-white/12 bg-[#151a17] p-5"><div className="flex items-center justify-between gap-3"><p className="data-label">{title}</p><span className="mono rounded-md border border-white/10 bg-black/15 px-2 py-1 text-[9px] text-[#9fa99f]">BAĞLI DEĞİL</span></div><p className="mt-5 text-sm font-semibold text-white">{metric}</p><p className="mt-2 min-h-[40px] text-xs leading-5 text-[#a8b2a8]">{note}</p><div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-3 text-[10px] text-[#7f8a7f]"><Layers3 size={13}/>{index === 3 ? "Liste ≠ alım listesi" : "Tarih/saatli veri bekleniyor"}</div></article>)}
+            </div>
+            <div className="mt-3 flex items-start gap-3 rounded-xl border border-[#d9c27d]/20 bg-[#d9c27d]/[.055] px-4 py-3 text-xs leading-5 text-[#d8cfb3]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#ead38e]"/><p><span className="font-semibold text-[#f0ddac]">Kâr kalitesi filtresi:</span> yatırım faaliyeti, varlık satışı veya benzeri tek seferlik gelirler; FAVÖK, faaliyet nakit akışı ve tekrarlayan operasyonel performanstan ayrıştırılmadan puanlamaya olumlu katkı yapmaz.</p></div>
           </div>
         </section>
 
@@ -279,6 +391,23 @@ export default function Home() {
               <div className="min-h-[340px] overflow-hidden rounded-2xl border border-white/12 bg-[#1a201c] p-6">
                 {openCode ? (() => { const item = signals.find((signal) => signal.code === openCode); if (!item) return null; return <div className="flex h-full flex-col"><div className="flex items-start justify-between gap-3"><StatusBadge kind={item.kind}/><a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] text-[#8ee19b] hover:underline">Birincil kaynağa git <ExternalLink size={12}/></a></div><p className="mono mt-6 text-[11px] tracking-[.14em] text-[#9ba69b]">{item.code} · {item.source} · {item.date}</p><h3 className="serif-title mt-3 text-3xl leading-[1.02] text-white">{item.title}</h3><p className="mt-5 text-sm leading-6 text-[#c5cdc5]">{item.summary}</p><div className="mt-5 grid gap-2 border-t border-white/10 pt-4 text-[11px] text-[#9fa99f]"><div className="flex justify-between gap-3"><span>Kaynak zamanı</span><span className="mono text-right text-white">{item.date}</span></div><div className="flex justify-between gap-3"><span>Son başarılı güncelleme</span><span className="mono text-right text-white">{formatSourceTime(kapSource?.lastSuccessAt ?? null)}</span></div><div className="flex justify-between gap-3"><span>Kaynak durumu</span><span className="text-right">{kapSource ? <SourceStatusBadge status={kapSource.status} /> : <span className="mono text-[#d9c27d]">KAP API beklemede</span>}</span></div>{kapSource?.errorMessage && <p className="text-[10px] leading-4 text-[#d9c27d]">Hata/durum notu: {kapSource.errorMessage}</p>}<a href={item.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[#8ee19b] hover:underline">Kaynak URL’sini aç <ExternalLink size={12}/></a></div><div className="mt-4 border-t border-white/10 pt-4"><p className="data-label flex items-center gap-2 text-[#d9c27d]"><CircleAlert size={13}/> İzleme notu</p><p className="mt-2 text-xs leading-5 text-[#bec6be]">{item.risk}</p></div></div>; })() : <div className="flex h-full flex-col items-center justify-center text-center"><Layers3 className="h-8 w-8 text-[#8ee19b]"/><p className="mt-4 text-sm font-semibold text-white">Bir bildirime odaklanın</p><p className="mt-2 max-w-[230px] text-xs leading-5 text-[#9ca69c]">Soldaki kayıtlardan birini seçerek kaynak notunu ve risk etiketini görün.</p></div>}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="teknik" className="relative overflow-hidden bg-[#151917] px-5 py-20 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 terminal-grid opacity-25" />
+          <div className="relative mx-auto max-w-[1240px]">
+            <div className="max-w-2xl"><p className="eyebrow">03 / Bağlam ve veri rehberi</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">Etiketi okuyun,<br/><em className="text-[#aeb8af]">veriyi değil varsayımı</em> takip edin.</h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">BIST ve KAP etiketleri “hangi veri bugün kullanıma hazır?” sorusunu yanıtlar. Teknik zaman dilimleri ise karar değil; belge ve finansal araştırmanın piyasa bağlamıdır.</p></div>
+
+            <div className="mt-10 grid gap-4 lg:grid-cols-2">
+              <article className="rounded-2xl border border-[#8ee19b]/20 bg-[#111713] p-6"><div className="flex items-center justify-between gap-4"><div><p className="data-label text-[#b7efbf]">BIST kaynak durumu</p><h3 className="serif-title mt-2 text-3xl text-white">{bistSource ? <SourceStatusBadge status={bistSource.status} /> : "Kontrol bekleniyor"}</h3></div><ShieldCheck className="h-7 w-7 text-[#8ee19b]" /></div><div className="mt-6 space-y-3 border-t border-white/10 pt-4 text-xs leading-5 text-[#bcc6bc]"><p><span className="font-semibold text-white">Ne kontrol ediliyor?</span> Her istek Borsa İstanbul’un herkese açık piyasa veri sayfasına ulaşılabildiğini sınar. Başarılı yanıt, sayfanın erişilebilir olduğunu gösterir; fiyat serisinin gerçek zamanlı olduğu anlamına gelmez.</p><p><span className="font-semibold text-white">“15 dk gecikmeli” neden var?</span> Herkese açık BIST ekranı gecikmeli veri rejimindedir. Bu yüzden arayüz, gecikmeyi açıkça yazar ve doğrulanmış canlı fiyat/hacim yokken rakam üretmez.</p><p className="mono text-[10px] text-[#8ee19b]">GÖZLEM · {formatSourceTime(bistSource?.observedAt ?? null)}</p></div></article>
+              <article className="rounded-2xl border border-[#d9c27d]/20 bg-[#17150f] p-6"><div className="flex items-center justify-between gap-4"><div><p className="data-label text-[#ead38e]">KAP veri durumu</p><h3 className="serif-title mt-2 text-3xl text-white">{kapSource ? <SourceStatusBadge status={kapSource.status} /> : "KAP API beklemede"}</h3></div><FileCheck2 className="h-7 w-7 text-[#d9c27d]" /></div><div className="mt-6 space-y-3 border-t border-white/10 pt-4 text-xs leading-5 text-[#c8c2ad]"><p><span className="font-semibold text-white">Ne anlama geliyor?</span> KAP’ın ayrıntılı, makinece işlenebilir bildirim akışı için lisanslı REST API erişimi gerekir. Bu anahtar yokken bildirim metni otomatik taranmaz ve yeni katalizör puanı üretilmez.</p><p><span className="font-semibold text-white">Mevcut kartlar ne?</span> Dashboarddaki KAP kartları tarihli kaynak URL’si bulunan araştırma notlarıdır. KAP API etkinleşene kadar yeni bildirim akışı veya “anlık KAP taraması” iddiası yoktur.</p><p className="text-[10px] leading-4 text-[#ead38e]">DURUM NOTU · {kapSource?.errorMessage ?? "Lisanslı API erişimi bekleniyor."}</p></div></article>
+            </div>
+
+            <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
+              <article className="rounded-2xl border border-white/12 bg-[#101311] p-6"><p className="data-label">100 puan modelinin taslağı</p><div className="mt-5 space-y-3">{scoreParts.map(([title, detail, weight]) => <div key={title} className="grid grid-cols-[1fr_auto] gap-4 rounded-xl border border-white/8 bg-white/[.025] px-4 py-3"><div><p className="text-sm font-semibold text-[#edf0eb]">{title}</p><p className="mt-1 text-[11px] leading-4 text-[#9ba59b]">{detail}</p></div><div className="mono text-lg text-[#8ee19b]">{weight}</div></div>)}</div><p className="mt-5 text-[10px] leading-4 text-[#838f83]">Bu ağırlıklar ürün taslağıdır. Hesaplanan skor ancak her alt metriğin dönem tarihi, kaynak URL’si ve formülü kaydedildiğinde aktif olur.</p></article>
+              <article className="rounded-2xl border border-white/12 bg-[#101311] p-6"><p className="data-label">Zaman dilimi bağlamı</p><div className="mt-5 overflow-hidden rounded-xl border border-white/10"><div className="grid grid-cols-[1fr_1fr] border-b border-white/10 bg-white/[.035] px-4 py-2.5 text-[10px] uppercase tracking-[.12em] text-[#899389]"><span>Üst bağlam</span><span>Alt inceleme</span></div>{[["Haftalık", "Günlük / 4 saatlik"], ["Günlük", "4 saatlik / 1 saatlik"], ["4 saatlik", "30 / 15 dakikalık"], ["1 saatlik", "15 / 5 dakikalık"]].map(([higher, lower]) => <div key={higher} className="grid grid-cols-[1fr_1fr] border-b border-white/8 px-4 py-3 text-xs text-[#c4ccc4] last:border-0"><span>{higher}</span><span className="text-[#9da99d]">{lower}</span></div>)}</div><div className="mt-5 rounded-xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.06] p-4 text-xs leading-5 text-[#b8cde0]"><p className="font-semibold text-[#d5e6f6]">Kullanım sınırı</p><p className="mt-1">Üst zaman dilimi bağlamı, alt zaman dilimi ise teyit dili içindir. Sistem CRT/CISD/OTE/MSS gibi etiketleri kesin giriş-çıkış sinyali olarak üretmez.</p></div></article>
             </div>
           </div>
         </section>

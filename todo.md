@@ -68,3 +68,20 @@
 - [x] Eski Manus Heartbeat görevi `TUntPVnLhHi83AmVTAxDB5` için yürütme kaydı oluşmadığını belgele ve Vercel daily cron’a geçiş nedeniyle görevi devre dışı bırak; görev duraklatıldı.
 - [x] Vercel cron endpointini gizli değeri ifşa etmeden yetkili bir çağrıyla veya Vercel cron loguyla doğrula; Vercel `Run` eylemi sonrası endpoint 200 döndü.
 - [x] Vercel serverless akışının kalıcı `source_statuses` veritabanı kaydı yazmadığını açıkça belgele; canlı endpointin on-demand kaynak sağlık kontrolü sağladığını ayır.
+
+## Tarama çalışma alanı geliştirmesi
+
+- [x] BIST kaynak durumu ve KAP API bekleme etiketlerinin ne anlama geldiğini arayüzde açıklayan bir durum rehberi ekle.
+- [x] 100 puanlık kalite taramasını büyüme, kârlılık kalitesi, nakit/borç, değerleme ve piyasa doğrulaması alt skorlarıyla görünür kıl.
+- [x] “Bebek hisse” taraması için kullanıcıdan gelen piyasa değeri, likidite, TTM trendi, FAVÖK ve faaliyet nakit akışı filtrelerini ekle.
+- [x] Fiili dolaşım, dolaşımdaki piyasa değeri, ROIC ve büyüme yatırımı ölçütlerini içeren V2 araştırma katmanını ekle.
+- [x] Piyasa özeti, artan/azalan/hacim liderleri, izleme listesi ve araştırma notu bileşenlerini ekle; veri yoksa bunu açık durum etiketiyle göster.
+- [x] Proje/katalizör taraması ve tekrar etmeyen gelir uyarısını kaynak-temelli araştırma notlarına ekle.
+- [x] Çoklu zaman dilimi teknik bağlam rehberini, kesin al-sat sinyali üretmeden araştırma akışına bağla.
+- [x] Yeni arayüzün Vitest, responsive görünüm ve yerel production build doğrulamasını tamamla; Vercel deployment adımı sıradaki checkpoint sonrası tetiklenecek.
+
+## Tarama kuralları ve piyasa özeti tamamlayıcıları
+
+- [x] Bebek hisse filtresinin piyasa değeri, 20 gün ortalama hacim, dört dönem TTM satış/kâr trendi, FAVÖK ve CFO kurallarını görünür politika paneli olarak ekle.
+- [x] Araştırma kartlarında doğrulanmış/eksik kriterleri ayrı ayrı göster; statik notlardan gelmeyen alanları `TBD` olarak işaretle.
+- [x] Artanlar, azalanlar, hacim liderleri ve izleme listesi için ayrı piyasa özeti boş durum panelleri ekle; veri katmanının bağlı olmadığını her panelde açıkça belirt.

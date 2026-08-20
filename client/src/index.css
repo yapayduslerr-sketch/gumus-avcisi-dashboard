@@ -85,7 +85,7 @@ button:not(:disabled), a[href] { cursor: pointer; }
   top: 0;
   bottom: 0;
   width: 3px;
-  background: linear-gradient(#8ee19b, rgba(142,225,155,.08));
+  background: linear-gradient(#c8d0ca, rgba(200,208,202,.05));
 }
 .noise::after {
   content: "";
@@ -109,7 +109,31 @@ button:not(:disabled), a[href] { cursor: pointer; }
   font-size: 11px;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: #8ee19b;
+  color: #aab4ab;
+}
+.brand-seal {
+  position: relative;
+  isolation: isolate;
+}
+.brand-seal::before {
+  content: "";
+  position: absolute;
+  inset: -14px -18px;
+  z-index: -1;
+  border: 1px solid rgba(210,218,212,.16);
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 23px, rgba(208,215,210,.13) 24px 25px, transparent 26px 39px, rgba(142,225,155,.13) 40px 41px, transparent 42px),
+    linear-gradient(90deg, transparent calc(50% - .5px), rgba(208,215,210,.10) 50%, transparent calc(50% + .5px)),
+    linear-gradient(0deg, transparent calc(50% - .5px), rgba(208,215,210,.10) 50%, transparent calc(50% + .5px));
+  clip-path: polygon(0 20%,20% 0,80% 0,100% 20%,100% 80%,80% 100%,20% 100%,0 80%);
+}
+.brand-wordmark {
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.data-rail {
+  border-left: 1px solid rgba(200,208,202,.20);
+  background: linear-gradient(90deg, rgba(200,208,202,.06), transparent 75%);
 }
 .serif-title { font-family: "DM Serif Display", Georgia, serif; }
 .mono { font-family: "IBM Plex Mono", monospace; }
