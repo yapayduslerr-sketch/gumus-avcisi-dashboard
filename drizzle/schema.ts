@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -25,4 +25,31 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export const sourceStatuses = mysqlTable("source_statuses", {
+  id: int("id").autoincrement().primaryKey(),
+  sourceKey: varchar("sourceKey", { length: 64 }).notNull().unique(),
+  label: varchar("label", { length: 160 }).notNull(),
+  status: mysqlEnum("status", ["DELAYED", "PENDING_API", "OK", "STALE", "ERROR"]).notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  lastAttemptAt: timestamp("lastAttemptAt"),
+  lastSuccessAt: timestamp("lastSuccessAt"),
+  observedAt: timestamp("observedAt"),
+  errorMessage: text("errorMessage"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({ statusIndex: index("source_statuses_status_idx").on(table.status) }));
+
+export const marketSnapshots = mysqlTable("market_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  symbol: varchar("symbol", { length: 24 }).notNull(),
+  price: decimal("price", { precision: 18, scale: 6 }),
+  changePercent: decimal("changePercent", { precision: 10, scale: 4 }),
+  sourceKey: varchar("sourceKey", { length: 64 }).notNull(),
+  sourceUrl: text("sourceUrl").notNull(),
+  observedAt: timestamp("observedAt"),
+  fetchedAt: timestamp("fetchedAt").defaultNow().notNull(),
+  status: mysqlEnum("status", ["DELAYED", "OK", "STALE", "ERROR"]).notNull(),
+  errorMessage: text("errorMessage"),
+}, (table) => ({ symbolTimeIndex: index("market_snapshots_symbol_time_idx").on(table.symbol, table.fetchedAt) }));
+
+export type SourceStatus = typeof sourceStatuses.$inferSelect;
+export type MarketSnapshot = typeof marketSnapshots.$inferSelect;
