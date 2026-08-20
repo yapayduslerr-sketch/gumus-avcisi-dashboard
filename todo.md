@@ -156,3 +156,8 @@
 - [x] `gumusdash-jhnr3rxf.manus.space` alan adını uygulama içi metinler, paylaşım notları ve kullanıcıya sunulan erişim yönlendirmelerinden kaldır; bu alan adını hiçbir kullanıcı akışında çalışma adresi olarak gösterme.
 - [x] `https://gumus-avcisi-live-data.vercel.app/` adresini tek doğrulanmış çalışma URL’si olarak belgelerde ve kullanıcı iletişimi şablonlarında sabitle.
 - [x] Vercel URL’sinin ana sayfa ile piyasa/kaynak API uç noktalarında HTTPS 200 döndüğünü yeniden doğrula; hata veren Manus alan adını platform sertifika sorunu olarak açıkça ayır.
+
+## manus.space dışında alternatif erişim
+
+- [x] `manus.space` uzantısı içermeyen geçici TLS önizleme bağlantısını oluştur ve HTTP/TLS erişimini doğrula. Alternatif URL TLS 1.3 ve ana sayfa/API için HTTP 200 döndü.
+- [x] Kullanıcı iletişiminde `manus.space` alan adını çalışma bağlantısı olarak kullanma; kalıcı erişim için yalnızca Vercel URL’sini, geçici doğrulama için alternatif bağlantıyı ayır.
