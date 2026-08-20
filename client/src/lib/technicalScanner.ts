@@ -50,6 +50,13 @@ export type TechnicalEvidence = {
   prior20High: number | null;
 };
 
+export type ChartOverlayPoint = {
+  timestamp: string;
+  sma10: number | null;
+  sma20: number | null;
+  sma50: number | null;
+};
+
 export type ScannerFinding = {
   modelId: ScannerModelId;
   modelName: string;
@@ -83,6 +90,19 @@ function simpleMovingAverage(values: number[], period: number, offset = 0): numb
   const start = end - period;
   if (start < 0) return null;
   return average(values.slice(start, end));
+}
+
+export function buildChartOverlays(bars: OhlcvBar[]): ChartOverlayPoint[] {
+  const closes = bars.map((bar) => bar.close);
+  return bars.map((bar, index) => {
+    const window = closes.slice(0, index + 1);
+    return {
+      timestamp: bar.timestamp,
+      sma10: round(simpleMovingAverage(window, 10), 4),
+      sma20: round(simpleMovingAverage(window, 20), 4),
+      sma50: round(simpleMovingAverage(window, 50), 4),
+    };
+  });
 }
 
 function exponentialMovingAverage(values: number[], period: number): number[] {

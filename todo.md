@@ -122,8 +122,8 @@
 - [x] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
 - [x] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
 - [ ] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma.
-- [ ] Sembol detay grafiği için tarihli mum, hacim, indikatör katmanı ve kaynak/başarı/hata zamanını gösteren özgün ekranı uygula.
-- [ ] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru.
+- [ ] Sembol detay grafiğini gerçek sembol bazlı BIST OHLCV adapterine bağla; mum, hacim, SMA(10/20/50), kaynak/başarı/hata zamanını göster. Grafik bileşeni hazırdır ancak lisanslı BIST OHLCV erişimi olmadığından `bars` şu an boş bekleme durumundadır.
+- [x] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru. XU100 kartı kaynak/gözlem/fiyat bağlı değil ayrımını, çoklu-varlık kartları ise kaynaklı veya kapsam bekler durumunu gösterir.
 - [x] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
 - [ ] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut.
 - [ ] Lisanslı BIST OHLCV ile KAP bildirimleri bağlandığında tarama sonuçları ve KAP kartlarını yalnızca tarihli, kaynak URL’li ve izlenebilir kayıtlarla doldur.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateTechnicalModel, summarizeModelIntersection, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
+import { buildChartOverlays, evaluateTechnicalModel, summarizeModelIntersection, type OhlcvBar, type TechnicalDataSet } from "./technicalScanner";
 
 function bars(count: number, multiplier = 1): OhlcvBar[] {
   return Array.from({ length: count }, (_, index) => {
@@ -45,5 +45,14 @@ describe("teknik tarama çekirdeği", () => {
     const breakout = evaluateTechnicalModel(data, "fifty-two-week-breakout");
     expect(trend.state).toBe("MATCH");
     expect(summarizeModelIntersection([trend, breakout])).toMatchObject({ eligibleModelCount: 2, matchedModelCount: 2, state: "MULTI_MODEL_MATCH" });
+  });
+
+  it("grafik katmanlarını yalnızca mevcut OHLCV kapanışlarından üretir", () => {
+    const overlays = buildChartOverlays(bars(50));
+    expect(overlays).toHaveLength(50);
+    expect(overlays[8]?.sma10).toBeNull();
+    expect(overlays[9]?.sma10).toBe(104.5);
+    expect(overlays[19]?.sma20).toBe(109.5);
+    expect(overlays[49]?.sma50).toBe(124.5);
   });
 });
