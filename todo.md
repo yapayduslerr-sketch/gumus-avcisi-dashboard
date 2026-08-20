@@ -85,3 +85,18 @@
 - [x] Bebek hisse filtresinin piyasa değeri, 20 gün ortalama hacim, dört dönem TTM satış/kâr trendi, FAVÖK ve CFO kurallarını görünür politika paneli olarak ekle.
 - [x] Araştırma kartlarında doğrulanmış/eksik kriterleri ayrı ayrı göster; statik notlardan gelmeyen alanları `TBD` olarak işaretle.
 - [x] Artanlar, azalanlar, hacim liderleri ve izleme listesi için ayrı piyasa özeti boş durum panelleri ekle; veri katmanının bağlı olmadığını her panelde açıkça belirt.
+
+## Canlı veri ve kişisel araştırma akışı
+
+- [x] A+B aşamalı kapsam notunu ekle: kullanıcı özellikleri şimdi çalışır; lisanslı fiyat-hacim ve KAP belgesi adapterleri anahtar gelene kadar kapalı kalır.
+- [x] KAP lisanslı REST API için anahtar-bağımlı adapter arayüzünü, sağlık kontrolünü ve kaynak/raporlama dönemi alanlarını ekle; erişim yokken `LİSANS GEREKİR` durumu dönüyor.
+- [x] Tarihli BIST fiyat-hacim snapshot adapterini, fiyat gecikmesi ve veri kaynağı etiketleriyle ekle; erişim yokken fiyat/hacim uydurmak yerine adapter durumunu göster.
+- [x] Cihaz bazlı izleme listesi ve notlar için yerel kalıcılık, veritabanı şeması ve arayüz etkileşimlerini ekle; hesap bazlı senkronizasyon erişim yapılandırmasına bırakıldı.
+- [x] Kaynak/katalizör uyarı tercihleri ve kalıcı uyarı kayıtları için veri modeli ile arayüzü ekle; gerçek uyarı olayı yalnızca lisanslı kaynak yapılandırıldığında üretilecek.
+- [x] Yeni veri adapterleri, kullanıcı tercihleri ve uyarı sınırları için migration, Vitest ve yerel production build doğrulamasını tamamla.
+
+## Lisanslı B aşaması aktivasyonu
+
+- [ ] KAP veri sağlayıcısı seçildiğinde `KAP_API_BASE_URL` ve `KAP_API_KEY` güvenli ortam değişkenlerini ekle; resmî sağlık çağrısıyla erişimi doğrula.
+- [ ] Tarihli BIST fiyat-hacim sağlayıcısı seçildiğinde `BIST_MARKET_API_BASE_URL` ve `BIST_MARKET_API_KEY` güvenli ortam değişkenlerini ekle; ilk snapshot alımını doğrula.
+- [ ] Hesap bazlı bulut senkronizasyonu için Vercel üretim ortamına kullanıcı veritabanı bağlantısını ekleyip cihaz listesini güvenli kullanıcı kapsamına taşı.

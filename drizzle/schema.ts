@@ -1,4 +1,4 @@
-import { decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, decimal, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -53,3 +53,45 @@ export const marketSnapshots = mysqlTable("market_snapshots", {
 
 export type SourceStatus = typeof sourceStatuses.$inferSelect;
 export type MarketSnapshot = typeof marketSnapshots.$inferSelect;
+
+export const watchlistEntries = mysqlTable("watchlist_entries", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  symbol: varchar("symbol", { length: 24 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userSymbolIndex: uniqueIndex("watchlist_entries_user_symbol_uq").on(table.userId, table.symbol),
+  userIndex: index("watchlist_entries_user_idx").on(table.userId),
+}));
+
+export const alertPreferences = mysqlTable("alert_preferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  sourceStatusChanges: boolean("sourceStatusChanges").notNull().default(false),
+  verifiedCatalysts: boolean("verifiedCatalysts").notNull().default(false),
+  inAppEnabled: boolean("inAppEnabled").notNull().default(true),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userUniqueIndex: uniqueIndex("alert_preferences_user_uq").on(table.userId),
+}));
+
+export const alertEvents = mysqlTable("alert_events", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  sourceKey: varchar("sourceKey", { length: 64 }),
+  symbol: varchar("symbol", { length: 24 }),
+  eventType: mysqlEnum("eventType", ["SOURCE_STATUS", "VERIFIED_CATALYST", "DATA_WAITING"]).notNull(),
+  title: varchar("title", { length: 220 }).notNull(),
+  detail: text("detail"),
+  sourceUrl: text("sourceUrl"),
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userCreatedIndex: index("alert_events_user_created_idx").on(table.userId, table.createdAt),
+}));
+
+export type WatchlistEntry = typeof watchlistEntries.$inferSelect;
+export type AlertPreference = typeof alertPreferences.$inferSelect;
+export type AlertEvent = typeof alertEvents.$inferSelect;

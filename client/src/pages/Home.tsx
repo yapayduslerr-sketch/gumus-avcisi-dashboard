@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
+import { defaultAlertPreferences, loadAlertPreferences, loadWatchlist, persistAlertPreferences, removeWatchlistItem, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -40,6 +41,13 @@ type SourceStatus = {
   lastSuccessAt: string | null;
   observedAt: string | null;
   errorMessage: string | null;
+};
+
+type ResearchCapability = {
+  sourceKey: string;
+  label: string;
+  state: "READY" | "LICENSE_REQUIRED" | "CONFIG_REQUIRED" | "ERROR";
+  detail: string;
 };
 
 type Signal = {
@@ -152,6 +160,7 @@ function recordCriteria(record: ResearchRecord) {
 const navItems = [
   ["#radar", "Radar"],
   ["#tarama", "Tarama"],
+  ["#izleme", "İzleme"],
   ["#teknik", "Teknik bağlam"],
   ["#sinyaller", "Belgeler"],
   ["#kaynaklar", "Kaynaklar"],
@@ -238,6 +247,10 @@ export default function Home() {
   const [researchLens, setResearchLens] = useState<ResearchLens | "Tümü">("Tümü");
   const [researchSearch, setResearchSearch] = useState("");
   const [selectedResearchCode, setSelectedResearchCode] = useState("INDES");
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [personalNote, setPersonalNote] = useState("");
+  const [alertPreferences, setAlertPreferences] = useState<DeviceAlertPreferences>(defaultAlertPreferences);
+  const [capabilities, setCapabilities] = useState<ResearchCapability[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -246,6 +259,15 @@ export default function Home() {
       .then((payload: { sources?: SourceStatus[] }) => { if (active) setSourceStatuses(payload.sources ?? []); })
       .catch(() => { if (active) setSourceStatuses([]); });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    setWatchlist(loadWatchlist());
+    setAlertPreferences(loadAlertPreferences());
+    fetch("/api/research-capabilities")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Adapter durumları alınamadı")))
+      .then((payload: { capabilities?: ResearchCapability[] }) => setCapabilities(payload.capabilities ?? []))
+      .catch(() => setCapabilities([]));
   }, []);
 
   const bistSource = sourceStatuses.find((source) => source.sourceKey === "BIST_PUBLIC");
@@ -266,6 +288,28 @@ export default function Home() {
     return lensMatch && queryMatch;
   }), [researchLens, researchSearch]);
   const selectedResearch = researchRecords.find((record) => record.code === selectedResearchCode) ?? researchRecords[0];
+
+  useEffect(() => {
+    setPersonalNote(watchlist.find((item) => item.symbol === selectedResearch?.code)?.note ?? "");
+  }, [selectedResearch?.code, watchlist]);
+
+  const isOnWatchlist = Boolean(selectedResearch && watchlist.some((item) => item.symbol === selectedResearch.code));
+  const saveWatchlist = () => {
+    if (!selectedResearch) return;
+    setWatchlist(upsertWatchlistItem(watchlist, selectedResearch.code, personalNote));
+    toast.success(`${selectedResearch.code} bu cihazdaki izleme listesine kaydedildi.`);
+  };
+  const removeFromWatchlist = (symbol = selectedResearch?.code) => {
+    if (!symbol) return;
+    setWatchlist(removeWatchlistItem(watchlist, symbol));
+    toast.message(`${symbol} izleme listesinden çıkarıldı.`);
+  };
+  const updateAlertPreference = (key: keyof DeviceAlertPreferences, value: boolean) => {
+    const next = { ...alertPreferences, [key]: value };
+    setAlertPreferences(next);
+    persistAlertPreferences(next);
+    toast.success("Uyarı tercihi bu cihazda kaydedildi.");
+  };
 
   const copyResearchNote = async () => {
     const text = "Gümüş Avcısı | Araştırma notu\nReferans: 18.08.2026 GMT+3\nBIST 100: piyasa değeri ağırlıklı fiyat endeksi\nKAP verileri için bildirim tarihi, finansal dönem ve gecikme ayrı tutulur.\nBu içerik yatırım tavsiyesi değildir.";
@@ -365,6 +409,23 @@ export default function Home() {
               {marketBlankPanels.map(([title, metric, note], index) => <article key={title} className="relative overflow-hidden rounded-2xl border border-white/12 bg-[#151a17] p-5"><div className="flex items-center justify-between gap-3"><p className="data-label">{title}</p><span className="mono rounded-md border border-white/10 bg-black/15 px-2 py-1 text-[9px] text-[#9fa99f]">BAĞLI DEĞİL</span></div><p className="mt-5 text-sm font-semibold text-white">{metric}</p><p className="mt-2 min-h-[40px] text-xs leading-5 text-[#a8b2a8]">{note}</p><div className="mt-5 flex items-center gap-2 border-t border-white/10 pt-3 text-[10px] text-[#7f8a7f]"><Layers3 size={13}/>{index === 3 ? "Liste ≠ alım listesi" : "Tarih/saatli veri bekleniyor"}</div></article>)}
             </div>
             <div className="mt-3 flex items-start gap-3 rounded-xl border border-[#d9c27d]/20 bg-[#d9c27d]/[.055] px-4 py-3 text-xs leading-5 text-[#d8cfb3]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#ead38e]"/><p><span className="font-semibold text-[#f0ddac]">Kâr kalitesi filtresi:</span> yatırım faaliyeti, varlık satışı veya benzeri tek seferlik gelirler; FAVÖK, faaliyet nakit akışı ve tekrarlayan operasyonel performanstan ayrıştırılmadan puanlamaya olumlu katkı yapmaz.</p></div>
+          </div>
+        </section>
+
+        <section id="izleme" className="relative overflow-hidden bg-[#101411] px-5 py-20 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 terminal-grid opacity-20" />
+          <div className="relative mx-auto max-w-[1240px]">
+            <div className="flex flex-col justify-between gap-6 border-b border-white/12 pb-8 md:flex-row md:items-end"><div className="max-w-2xl"><p className="eyebrow">03 / Kişisel araştırma alanı</p><h2 className="serif-title mt-3 text-4xl leading-none tracking-[-.035em] text-white sm:text-5xl">İzleyin, not alın,<br/><em className="text-[#aeb8af]">kaynağı bekleyin.</em></h2><p className="mt-5 text-sm leading-7 text-[#adb7ad]">Aşama A bu tarayıcıdaki izleme listenizi, notlarınızı ve uyarı tercihlerinizi saklar. Hesap-bazlı senkronizasyon ile bildirim teslimi, üretim veri erişimi bağlandığında aynı sözleşmeye taşınır.</p></div><div className="rounded-xl border border-white/12 bg-white/[.035] px-4 py-3 text-xs text-[#b7c0b7]"><p className="data-label">Seçili araştırma</p><p className="mono mt-1 text-base text-white">{selectedResearch?.code ?? "—"}</p></div></div>
+
+            <div className="mt-8 grid gap-4 xl:grid-cols-[.94fr_1.06fr]">
+              <div className="rounded-2xl border border-white/12 bg-[#161b18] p-6"><div className="flex items-center justify-between gap-4"><div><p className="data-label">İzleme listesi</p><p className="mt-2 text-sm font-semibold text-white">Bu cihazda {watchlist.length} kayıt</p></div><button onClick={isOnWatchlist ? () => removeFromWatchlist() : saveWatchlist} className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${isOnWatchlist ? "border-[#e5c982]/30 bg-[#e5c982]/10 text-[#ead38e]" : "border-[#8ee19b]/40 bg-[#8ee19b]/10 text-[#b7efbf]"}`}>{isOnWatchlist ? "Seçili kaydı çıkar" : "Seçili kaydı ekle"}</button></div>
+                <label className="mt-5 block"><span className="data-label">{selectedResearch?.code ?? "Seçili kayıt"} için not</span><textarea value={personalNote} onChange={(event) => setPersonalNote(event.target.value)} placeholder="Hangi belgeyi, dönemi veya riski takip edeceğinizi yazın…" className="mt-2 min-h-[92px] w-full resize-y rounded-xl border border-white/12 bg-black/15 p-3 text-xs leading-5 text-white outline-none placeholder:text-[#758075] focus:border-[#8ee19b]/45" /></label><button onClick={saveWatchlist} className="mt-3 text-xs font-semibold text-[#b7efbf] hover:text-white">Notu ve seçili kaydı kaydet →</button>
+                <div className="mt-6 border-t border-white/10 pt-4">{watchlist.length ? <div className="space-y-2">{watchlist.map((item) => <div key={item.symbol} className="flex items-start justify-between gap-3 rounded-xl border border-white/8 bg-white/[.025] px-3 py-3"><button onClick={() => setSelectedResearchCode(item.symbol)} className="text-left"><p className="mono text-sm text-white">{item.symbol}</p><p className="mt-1 line-clamp-1 text-[10px] text-[#9da89d]">{item.note || "Not eklenmedi"}</p></button><button onClick={() => removeFromWatchlist(item.symbol)} aria-label={`${item.symbol} kaydını çıkar`} className="rounded-md p-1.5 text-[#9fa99f] transition hover:bg-white/10 hover:text-white"><X size={14}/></button></div>)}</div> : <div className="rounded-xl border border-dashed border-white/15 bg-white/[.02] p-5 text-center"><Layers3 className="mx-auto h-5 w-5 text-[#788478]"/><p className="mt-2 text-xs text-[#aeb7ae]">Henüz kişisel izleme kaydı yok.</p></div>}</div>
+                <p className="mt-4 text-[10px] leading-4 text-[#7e897e]">Bu aşamada kayıtlar yalnızca bu tarayıcının yerel saklama alanında tutulur. Ortak cihazlarda kişisel not saklamayın.</p></div>
+
+              <div className="grid gap-4"><div className="rounded-2xl border border-white/12 bg-[#161b18] p-6"><div className="flex items-center justify-between"><div><p className="data-label">Uyarı tercihleri</p><p className="mt-2 text-sm font-semibold text-white">Kaynak olayı temelli, fiyat hedefi değil</p></div><CircleAlert className="h-5 w-5 text-[#d9c27d]"/></div><div className="mt-5 space-y-3">{[["sourceStatusChanges", "Kaynak durumu değişirse", "BIST/KAP adapteri hata, gecikme veya hazır durumuna geçerse"], ["verifiedCatalysts", "Doğrulanmış katalizör olayı", "Yalnızca lisanslı KAP akışı veya tarihli kaynak belgesi bağlandığında"], ["inAppEnabled", "Araştırma ekranı uyarıları", "Uyarıları bu cihazdaki araştırma alanında tut"]].map(([key, title, detail]) => <label key={key} className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-white/8 bg-white/[.025] p-3"><span><span className="block text-xs font-semibold text-[#e1e6e1]">{title}</span><span className="mt-1 block text-[10px] leading-4 text-[#939e93]">{detail}</span></span><input type="checkbox" checked={alertPreferences[key as keyof DeviceAlertPreferences]} onChange={(event) => updateAlertPreference(key as keyof DeviceAlertPreferences, event.target.checked)} className="mt-1 h-4 w-4 accent-[#8ee19b]" /></label>)}</div></div>
+                <div className="rounded-2xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.055] p-6"><p className="data-label text-[#b8d8ef]">B aşaması · veri adapterleri</p><div className="mt-4 space-y-3">{capabilities.length ? capabilities.map((capability) => <div key={capability.sourceKey} className="rounded-xl border border-white/10 bg-[#101311]/60 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold text-white">{capability.label}</p><p className="mt-1 text-[10px] leading-4 text-[#a4b7c5]">{capability.detail}</p></div><span className={`mono shrink-0 rounded-md border px-2 py-1 text-[9px] ${capability.state === "READY" ? "border-[#8ee19b]/30 text-[#b7efbf]" : capability.state === "ERROR" ? "border-[#e98282]/30 text-[#f0aaaa]" : "border-[#8ab5e3]/25 text-[#aad0ef]"}`}>{capability.state === "READY" ? "HAZIR" : capability.state === "ERROR" ? "ERİŞİM HATASI" : capability.state === "CONFIG_REQUIRED" ? "AYAR BEKLİYOR" : "LİSANS GEREKİR"}</span></div></div>) : <p className="text-xs leading-5 text-[#a4b7c5]">Adapter durumu alınamadı; kaynaklar bu aşamada kapalı kabul edilir.</p>}</div><p className="mt-4 text-[10px] leading-4 text-[#90a5b4]">Anahtarlar tanımlanana kadar bu alanlar fiyat, hacim, bildirim veya sinyal üretmez. Sağlayıcı anahtarları geldikten sonra yalnızca sunucu tarafında güvenli ortam değişkeni olarak eklenir.</p></div></div>
+            </div>
           </div>
         </section>
 

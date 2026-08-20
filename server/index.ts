@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { getSourceStatuses, runScheduledUpdate } from "./dataPipeline";
 import { authenticateRequest } from "./_core/sdk";
+import { probeLicensedAdapter } from "./licensedAdapters";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,16 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
+  });
+
+  app.get("/api/research-capabilities", async (_req, res) => {
+    const labels = {
+      KAP_REST: "KAP lisanslı bildirim adapteri",
+      BIST_MARKET: "Tarihli BIST fiyat-hacim adapteri",
+    } as const;
+    const probes = await Promise.all([probeLicensedAdapter("KAP_REST"), probeLicensedAdapter("BIST_MARKET")]);
+    const capabilities = probes.map((probe) => ({ sourceKey: probe.sourceKey, label: labels[probe.sourceKey], state: probe.state, detail: probe.detail, checkedAt: probe.checkedAt }));
+    res.json({ mode: "phased", capabilities });
   });
 
   // This endpoint is deliberately idempotent and ignores request-body fields.
