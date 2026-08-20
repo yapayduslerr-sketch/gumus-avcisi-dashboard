@@ -117,6 +117,7 @@
 
 - [x] Kaynak URL’si, gözlem zamanı ve OHLCV bütünlüğü geçerli değilse sonuç üretmeyen teknik tarama çekirdeğini ekle; RSI, MACD, Bollinger, hacim eşiği, 10/50 kesişimi, 50/200 bağlamı ve 52-hafta zirve bağlamı için birim testleri yaz.
 - [x] Özgün mobil teknik model seçim masası ile döviz, Brent, ons altın ve kripto için kaynak-etiketli API bekleme kartlarını uygula; gerçek veri gelene kadar sayısal sonuç gösterme.
+- [x] Seçili teknik modellerin parametre, varsayılan zaman dilimi, minimum geçmiş ve doğrulanmış sonuç satırı sözleşmesini içeren indirilebilir CSV şemasını ekle.
 - [ ] Özgün Gümüş Avcısı tasarım diliyle mobil odaklı Ana Sayfa, Sinyaller, Piyasalar ve KAP çalışma alanlarını ekle; üçüncü taraf ürünün görsel kimliğini veya metinlerini kopyalama.
 - [ ] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
 - [ ] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.

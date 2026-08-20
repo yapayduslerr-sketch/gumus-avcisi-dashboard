@@ -32,6 +32,7 @@ import { TechnicalChartPanel } from "@/components/TechnicalChartPanel";
 import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
 import { clearPersonalResearchData, createPersonalResearchBackup, defaultAlertPreferences, loadAlertPreferences, loadWatchlist, parsePersonalResearchBackup, persistAlertPreferences, removeWatchlistItem, restorePersonalResearchBackup, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
 import { TECHNICAL_SCANNER_MODELS, type ScannerModelId } from "@/lib/technicalScanner";
+import { downloadScannerSchema } from "@/lib/scannerExport";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -416,7 +417,12 @@ export default function Home() {
   };
 
   const exportScannerCsv = () => {
-    toast.message("CSV çıktısı, tarihli BIST OHLCV kaynağı bağlandığında yalnızca doğrulanmış tarama sonuçlarını indirir.");
+    if (!selectedTechnicalModels.length) {
+      toast.message("Önce en az bir teknik model seçin.");
+      return;
+    }
+    downloadScannerSchema(selectedTechnicalModels);
+    toast.success("Seçili modellerin CSV şeması indirildi; gerçek sonuç satırları yalnızca tarihli BIST OHLCV bağlandığında eklenir.");
   };
 
   const copyResearchNote = async () => {
