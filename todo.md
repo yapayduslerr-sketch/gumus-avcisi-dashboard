@@ -36,8 +36,8 @@
 
 ## Doğrulama sonrası iyileştirmeler
 
-- [ ] `/api/scheduled/update-market-data` için cron-only kimlik doğrulaması ekle ve Heartbeat auth akışına göre doğrula.
-- [ ] BIST/KAP için gerçekten yapılandırılabilir adapter katmanı oluştur; URL ve strateji seçimini yapılandırmadan yönet.
-- [ ] Dashboard’da source status `errorMessage` alanını görünür hata durumu olarak göster.
-- [ ] BIST kaynağına ait açık kaynak zamanı (`observedAt` veya `lastSuccessAt`) etiketini ayrı göster.
-- [ ] Her sinyal kaydında kaynak URL, güncelleme zamanı ve hata/durum bilgisini görünür kıl.
+- [x] `/api/scheduled/update-market-data` için cron-only JWT kimlik doğrulaması ekle ve Heartbeat auth akışına göre doğrula.
+- [x] BIST/KAP için yapılandırılabilir adapter katmanı oluştur; URL ve strateji seçimini ortam yapılandırmasından yönet.
+- [x] Dashboard’da source status `errorMessage` alanını görünür hata durumu olarak göster.
+- [x] BIST kaynağına ait açık kaynak zamanı (`observedAt`) etiketini ayrı göster.
+- [x] Her sinyal kaydında kaynak URL, güncelleme zamanı ve hata/durum bilgisini görünür kıl.

@@ -25,6 +25,8 @@ type SourceAdapter = {
 const BIST_URL = process.env.BIST_PUBLIC_SOURCE_URL ?? "https://www.borsaistanbul.com/en/market-data";
 const KAP_URL = process.env.KAP_PUBLIC_SOURCE_URL ?? "https://kap.org.tr/en/";
 const KAP_PENDING_MESSAGE = "KAP REST API anahtarı bekleniyor; kamu ekranı ayrıntılı veri adapteri olarak kullanılmıyor.";
+const BIST_STRATEGY = process.env.BIST_SOURCE_STRATEGY ?? "public-probe";
+const KAP_STRATEGY = process.env.KAP_SOURCE_STRATEGY ?? "pending-api";
 
 async function probe(url: string): Promise<{ ok: boolean; observedAt: string; errorMessage: string | null }> {
   const observedAt = new Date().toISOString();
@@ -42,15 +44,16 @@ const adapters: SourceAdapter[] = [
     label: "BIST herkese açık veri ekranı",
     sourceUrl: BIST_URL,
     probe: () => probe(BIST_URL),
-    resolveStatus: ({ ok }) => ok ? "DELAYED" : "ERROR",
+    resolveStatus: ({ ok }) => BIST_STRATEGY === "pending-api" ? "PENDING_API" : ok ? "DELAYED" : "ERROR",
+    pendingMessage: BIST_STRATEGY === "pending-api" ? "BIST adapter stratejisi pending-api olarak yapılandırıldı." : undefined,
   },
   {
     sourceKey: "KAP_PUBLIC",
     label: "KAP kamuya açık bildirim ekranı",
     sourceUrl: KAP_URL,
     probe: async () => ({ ok: true, observedAt: new Date().toISOString(), errorMessage: null }),
-    resolveStatus: () => "PENDING_API",
-    pendingMessage: KAP_PENDING_MESSAGE,
+    resolveStatus: ({ ok }) => KAP_STRATEGY === "public-probe" ? (ok ? "OK" : "ERROR") : "PENDING_API",
+    pendingMessage: KAP_STRATEGY === "public-probe" ? undefined : KAP_PENDING_MESSAGE,
   },
 ];
 
