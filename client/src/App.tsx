@@ -10,6 +10,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import XProDashboard from "./pages/XProDashboard";
 import XProMethodology from "./pages/XProMethodology";
+import XProProviderSettings from "./pages/XProProviderSettings";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/x-pro" component={XProDashboard} />
       <Route path="/x-pro/methodology" component={XProMethodology} />
+      <Route path="/x-pro/data-providers" component={XProProviderSettings} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

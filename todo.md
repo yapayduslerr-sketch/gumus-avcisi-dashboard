@@ -184,3 +184,9 @@
 - [x] “Gümüş Avcısı X Pro nasıl çalışır?” metodoloji görünümünde veri → filtre → teknik → momentum → kalite → değerleme → olay → risk → Early Score → sıralama zincirini ve ağırlıkları açıkla.
 - [x] X Pro dashboardunda `/api/xpro-overview` için ayrı yüklenme, istek hatası ve veri yok durumlarını göster; bunları filtre boş durumundan ayır.
 - [x] Filtre sonucu boş olduğunda arama terimi, Quality/Early/Risk eşikleri ve veri eksikliği/istek hatası bağlamına göre neden açıklaması üret ve görünür kıl.
+
+## X Pro provider ayarları
+
+- [x] Demo, Forinvest ve dxFeed için sunucu tarafında anahtarları göstermeyen provider durum/test uç noktasını ekle.
+- [x] X Pro içinde aktif provider, eksik yapılandırma alanları, canlıya geçiş şartları ve güvenli test sonucunu gösteren bir “Veri Kaynağı Ayarları” ekranı ekle.
+- [x] İstemci tarafında API anahtarı girişini veya saklamayı engelle; sağlayıcı anahtarlarının yalnızca ortam değişkeni/gizli yapılandırma üzerinden eklendiğini görünür biçimde açıkla.

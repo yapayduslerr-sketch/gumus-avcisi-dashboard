@@ -7,6 +7,7 @@ import { authenticateRequest } from "./_core/sdk";
 import { probeLicensedAdapter } from "./licensedAdapters";
 import { fetchMultiAssetQuotes, getMultiAssetReadiness } from "./multiAssetAdapter";
 import xProOverviewHandler from "../api/xpro-overview";
+import xProProviderStatusHandler from "../api/xpro-provider-status";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +45,10 @@ async function startServer() {
 
   app.get("/api/xpro-overview", async (req, res) => {
     await xProOverviewHandler(req, res);
+  });
+
+  app.get("/api/xpro-provider-status", async (req, res) => {
+    await xProProviderStatusHandler(req, res);
   });
 
   // This endpoint is deliberately idempotent and ignores request-body fields.
