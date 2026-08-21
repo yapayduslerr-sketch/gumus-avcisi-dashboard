@@ -204,8 +204,8 @@
 
 ## Tarama çalışma alanı işlevsellik düzeltmesi
 
-- [ ] `#tarama` bölümündeki kalite, Bebek V2 ve proje taraması kontrollerinin neden sonuçları değiştirmediğini denetle ve gerçek istemci durumu ile filtreleme akışına bağla.
-- [ ] Teknik model masasındaki model seçimi, parametre/filtre kontrolleri ve sonuç/boş durumlarını etkileşimli hale getir.
-- [ ] Sabit veya tarih dışı araştırma satırlarını canlı BIST sonucu gibi görünmeyecek biçimde kaldır ya da kullanıcı düzenlemeli yerel araştırma verisi olarak ayır.
-- [ ] Lisanslı 15 dakika gecikmeli OHLCV olmadan canlı fiyat/sinyal üretmeyen, ancak kaynak eksikliğini ve doğru sonraki adımı çalışır biçimde gösteren sonuç durumlarını uygula.
-- [ ] Yeni etkileşimleri Vitest, masaüstü ve Android Chrome hedef boyutunda doğrula; üretimde tekrar kontrol et.
+- [x] `#tarama` bölümündeki kalite, Bebek V2 ve proje taraması kontrollerinin neden sonuçları değiştirmediğini denetle ve gerçek istemci durumu ile filtreleme akışına bağla.
+- [x] Teknik model masasındaki model seçimi, parametre/filtre kontrolleri ve sonuç/boş durumlarını etkileşimli hale getir.
+- [x] Sabit veya tarih dışı araştırma satırlarını canlı BIST sonucu gibi görünmeyecek biçimde kaldır ya da kullanıcı düzenlemeli yerel araştırma verisi olarak ayır. Mevcut satırlar açık `CANLI TARAMA SONUCU DEĞİL` etiketli arşiv notları olarak ayrıldı.
+- [x] Lisanslı 15 dakika gecikmeli OHLCV olmadan canlı fiyat/sinyal üretmeyen, ancak kaynak eksikliğini ve doğru sonraki adımı çalışır biçimde gösteren sonuç durumlarını uygula.
+- [ ] Yeni etkileşimleri Vitest, masaüstü ve Android Chrome hedef boyutunda doğrula; üretimde tekrar kontrol et. Yerel test/masaüstü/mobil kontrolleri tamamlandı; Vercel üretim kontrolü dağıtım sonrasında yapılacak.
