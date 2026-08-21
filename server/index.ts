@@ -8,6 +8,7 @@ import { probeLicensedAdapter } from "./licensedAdapters";
 import { fetchMultiAssetQuotes, getMultiAssetReadiness } from "./multiAssetAdapter";
 import xProOverviewHandler from "../api/xpro-overview";
 import xProProviderStatusHandler from "../api/xpro-provider-status";
+import bistOhlcvHandler from "../api/bist-ohlcv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,10 @@ async function startServer() {
 
   app.get("/api/xpro-provider-status", async (req, res) => {
     await xProProviderStatusHandler(req, res);
+  });
+
+  app.get("/api/bist-ohlcv", async (req, res) => {
+    await bistOhlcvHandler(req, res);
   });
 
   // This endpoint is deliberately idempotent and ignores request-body fields.

@@ -122,12 +122,18 @@
 - [x] Kullanıcının seçebileceği teknik tarama model kataloğunu oluştur: hareketli ortalama kesişimi, RSI, MACD, Bollinger, hacim, trend gücü, formasyon ve çoklu-model kesişimi.
 - [x] Her model için hesaplama tanımını, parametrelerini, gerekli OHLCV kapsamını, geçerli zaman dilimini ve sonuç durumlarını kaynak şeffaflığıyla göster.
 - [x] Sinyal sonuç listesi, sembol araması, filtre/sıralama, model etiketi, kaynak zamanı ve CSV dışa aktarımını ekle; tarihli OHLCV yokken gerçek sinyal sonucu uydurma. X Pro sonuçları demo/sentetik etiketi, provider/gözlem zamanı ve CSV uyarı sütunuyla ayrı tutulur.
-- [ ] Sembol detay grafiğini gerçek sembol bazlı BIST OHLCV adapterine bağla; mum, hacim, SMA(10/20/50), kaynak/başarı/hata zamanını göster. Grafik bileşeni hazırdır ancak lisanslı BIST OHLCV erişimi olmadığından `bars` şu an boş bekleme durumundadır.
+- [x] Sembol detay grafiğini gerçek sembol bazlı BIST OHLCV adapterine bağla; mum, hacim, SMA(10/20/50), kaynak/başarı/hata zamanını göster. Tek sembol 15 dakikalık bar endpointi başarılı yanıt verdiğinde grafik kaynaklı barlarla çizilir.
 - [x] Piyasa özetinde BIST, döviz, emtia ve kripto göstergelerini ayrı kaynak-etiketli kartlarda göster; doğrulanmış veri yokken bağlı değil durumunu koru. XU100 kartı kaynak/gözlem/fiyat bağlı değil ayrımını, çoklu-varlık kartları ise kaynaklı veya kapsam bekler durumunu gösterir.
 - [x] KAP çalışma alanında bildirim kategorileri, sembol/şirket arama, tarih, kaynak URL’si ve birincil kayda yönlendirme görünümünü ekle; lisanslı akış açılana dek açık kaynak bekleme durumunu koru.
 - [x] Kullanıcı favorilerini teknik tarama ve piyasa detay ekranlarıyla birleştir; cihaz verisi ve ilerideki hesap-bazlı senkronizasyon ayrımını görünür tut. Favori sembolü, teknik model bağlamı ile piyasa detayında kaynak/gözlem/veri-bekleme ve cihaz notu panellerine bağlandı; hesap-bazlı senkronizasyon ayrı B aşaması olarak etiketlendi.
 - [ ] Lisanslı BIST OHLCV ile KAP bildirimleri bağlandığında tarama sonuçları ve KAP kartlarını yalnızca tarihli, kaynak URL’li ve izlenebilir kayıtlarla doldur.
 - [x] Yeni teknik model hesapları, veri geçerliliği, CSV çıktısı ve boş/veri hatası durumları için Vitest kapsamı ekle; mobil görünüm, TypeScript ve production build doğrulamasını tamamla.
+
+## Twelve Data BIST 15 dakikalık bar entegrasyonu
+
+- [x] Sunucu tarafındaki mevcut Twelve Data anahtarıyla tek BIST sembolü için XIST 15 dakikalık OHLCV endpointini, gizli değer veya ham sağlayıcı gövdesi döndürmeden etkinleştir.
+- [x] Teknik çalışma alanındaki “Taramayı çalıştır” eylemini seçilen sembolün kaynaklı OHLCV verisine bağla; grafik ve model bulgularını yalnızca başarılı veri yanıtından sonra göster.
+- [x] Sağlayıcının borsa sayfasındaki gecikme beyanı ile 15 dakikalık bar aralığını ayır; geçerliliği kanıtlanmamış “15 dk gecikmeli canlı fiyat” iddiasını kullanma.
 
 ## Kullanıcının seçtiği kademeli tam-veri hedefi
 
@@ -190,3 +196,16 @@
 - [x] Demo, Forinvest ve dxFeed için sunucu tarafında anahtarları göstermeyen provider durum/test uç noktasını ekle.
 - [x] X Pro içinde aktif provider, eksik yapılandırma alanları, canlıya geçiş şartları ve güvenli test sonucunu gösteren bir “Veri Kaynağı Ayarları” ekranı ekle.
 - [x] İstemci tarafında API anahtarı girişini veya saklamayı engelle; sağlayıcı anahtarlarının yalnızca ortam değişkeni/gizli yapılandırma üzerinden eklendiğini görünür biçimde açıkla.
+
+## Vercel erişim yeniden doğrulaması
+
+- [x] Kullanıcının bildirdiği “güvenli bağlantı sağlanmıyor” hatası için tek çalışma Vercel adresinin DNS, TLS ve HTTP erişimini yeniden doğrula. `gumus-avcisi-live-data.vercel.app` DNS çözümlemesi, TLS sertifika zinciri ve HTTP/2 200 yanıtı doğrulandı.
+- [x] Hatalı sertifika veren alternatif alan adlarının uygulama/iletişim akışında kullanılmadığını tekrar denetle; kullanıcıya yalnızca doğrulanmış Vercel adresini sun. Proje dosyalarında `manus.space` veya eski alternatif alan adı referansı bulunmadı.
+
+## Tarama çalışma alanı işlevsellik düzeltmesi
+
+- [ ] `#tarama` bölümündeki kalite, Bebek V2 ve proje taraması kontrollerinin neden sonuçları değiştirmediğini denetle ve gerçek istemci durumu ile filtreleme akışına bağla.
+- [ ] Teknik model masasındaki model seçimi, parametre/filtre kontrolleri ve sonuç/boş durumlarını etkileşimli hale getir.
+- [ ] Sabit veya tarih dışı araştırma satırlarını canlı BIST sonucu gibi görünmeyecek biçimde kaldır ya da kullanıcı düzenlemeli yerel araştırma verisi olarak ayır.
+- [ ] Lisanslı 15 dakika gecikmeli OHLCV olmadan canlı fiyat/sinyal üretmeyen, ancak kaynak eksikliğini ve doğru sonraki adımı çalışır biçimde gösteren sonuç durumlarını uygula.
+- [ ] Yeni etkileşimleri Vitest, masaüstü ve Android Chrome hedef boyutunda doğrula; üretimde tekrar kontrol et.

@@ -31,8 +31,9 @@ import { toast } from "sonner";
 import { TechnicalChartPanel } from "@/components/TechnicalChartPanel";
 import { QUALITY_SCORE_PARTS } from "@/lib/screeningModel";
 import { clearPersonalResearchData, createPersonalResearchBackup, defaultAlertPreferences, loadAlertPreferences, loadWatchlist, parsePersonalResearchBackup, persistAlertPreferences, removeWatchlistItem, restorePersonalResearchBackup, type DeviceAlertPreferences, type WatchlistItem, upsertWatchlistItem } from "@/lib/personalResearch";
-import { TECHNICAL_SCANNER_MODELS, type ScannerModelId } from "@/lib/technicalScanner";
+import { evaluateTechnicalModels, TECHNICAL_SCANNER_MODELS, type OhlcvBar, type ScannerModelId } from "@/lib/technicalScanner";
 import { downloadScannerSchema } from "@/lib/scannerExport";
+import { filterWorkspaceRecords, resolveSelectedWorkspaceRecord, technicalRunMessage } from "@/lib/researchWorkspace";
 
 const LOGO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/LxcWrYHZKAOGmzoL.png";
 const HERO = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663900533458/FrUzDFqDENVuvgun.jpg";
@@ -75,6 +76,13 @@ type MultiAssetContext = {
   detail: string;
   quotes: MultiAssetQuote[];
   unavailableAssetKeys: MultiAssetQuote["assetKey"][];
+};
+
+type BistOhlcvResponse = {
+  state: "READY" | "LICENSE_REQUIRED" | "CONFIG_REQUIRED" | "ERROR";
+  detail: string;
+  checkedAt: string;
+  data: null | { symbol: string; interval: "15min"; bars: OhlcvBar[]; asOf: string; sourceLabel: string; sourceUrl: string; delayMinutes: null };
 };
 
 type Signal = {
@@ -281,7 +289,7 @@ export default function Home() {
   const [sourceStatuses, setSourceStatuses] = useState<SourceStatus[]>([]);
   const [researchLens, setResearchLens] = useState<ResearchLens | "Tümü">("Tümü");
   const [researchSearch, setResearchSearch] = useState("");
-  const [selectedResearchCode, setSelectedResearchCode] = useState("INDES");
+  const [selectedResearchKey, setSelectedResearchKey] = useState("Kalite 100:INDES");
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [personalNote, setPersonalNote] = useState("");
   const [alertPreferences, setAlertPreferences] = useState<DeviceAlertPreferences>(defaultAlertPreferences);
@@ -290,6 +298,9 @@ export default function Home() {
   const [selectedTechnicalModels, setSelectedTechnicalModels] = useState<ScannerModelId[]>(["rsi-momentum", "macd-cross"]);
   const [technicalSearch, setTechnicalSearch] = useState("");
   const [technicalSort, setTechnicalSort] = useState<"match" | "symbol" | "observed">("match");
+  const [lastTechnicalRunAt, setLastTechnicalRunAt] = useState<string | null>(null);
+  const [bistOhlcvResponse, setBistOhlcvResponse] = useState<BistOhlcvResponse | null>(null);
+  const [isTechnicalScanning, setIsTechnicalScanning] = useState(false);
   const [multiAssetContext, setMultiAssetContext] = useState<MultiAssetContext | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -326,14 +337,23 @@ export default function Home() {
     return matchQuery && matchFilter;
   }), [search, filter]);
 
-  const filteredResearch = useMemo(() => researchRecords.filter((record) => {
-    const query = researchSearch.trim().toLocaleLowerCase("tr-TR");
-    const lensMatch = researchLens === "Tümü" || record.lens === researchLens;
-    const queryMatch = !query || `${record.code} ${record.thesis} ${record.label}`.toLocaleLowerCase("tr-TR").includes(query);
-    return lensMatch && queryMatch;
-  }), [researchLens, researchSearch]);
+  const workspaceRecords = useMemo(() => researchRecords.map((record) => ({ ...record, key: `${record.lens}:${record.code}` })), []);
+  const filteredResearch = useMemo(() => filterWorkspaceRecords(workspaceRecords, researchLens, researchSearch), [workspaceRecords, researchLens, researchSearch]);
   const multiAssetQuotes = useMemo(() => new Map((multiAssetContext?.quotes ?? []).map((quote) => [quote.assetKey, quote])), [multiAssetContext]);
-  const selectedResearch = researchRecords.find((record) => record.code === selectedResearchCode) ?? researchRecords[0];
+  const selectedResearch = resolveSelectedWorkspaceRecord(filteredResearch, selectedResearchKey);
+  const activeTechnicalData = bistOhlcvResponse?.data ?? null;
+  const technicalFindings = useMemo(() => activeTechnicalData ? evaluateTechnicalModels({ symbol: activeTechnicalData.symbol, bars: activeTechnicalData.bars, asOf: activeTechnicalData.asOf, sourceUrl: activeTechnicalData.sourceUrl, sourceLabel: activeTechnicalData.sourceLabel, delayMinutes: activeTechnicalData.delayMinutes }, selectedTechnicalModels) : [], [activeTechnicalData, selectedTechnicalModels]);
+  const technicalRunState = isTechnicalScanning
+    ? { tone: "loading" as const, title: "15 dakikalık barlar alınıyor", detail: "Twelve Data XIST kaynağı sunucu tarafında sorgulanıyor; yanıt gelmeden fiyat veya sinyal gösterilmez." }
+    : activeTechnicalData
+      ? { tone: "ready" as const, title: `${activeTechnicalData.symbol} teknik taraması tamamlandı`, detail: `${activeTechnicalData.bars.length} kaynaklı 15 dakikalık bar üzerinde ${technicalFindings.length} seçili model hesaplandı. ${technicalFindings.filter((finding) => finding.matched).length} model eşleşti.` }
+      : bistOhlcvResponse
+        ? { tone: "blocked" as const, title: "Teknik tarama sonucu üretilemedi", detail: bistOhlcvResponse.detail }
+        : technicalRunMessage({ selectedModelCount: selectedTechnicalModels.length, symbolQuery: technicalSearch, liveOhlcvReady: false });
+
+  useEffect(() => {
+    if (selectedResearch && selectedResearch.key !== selectedResearchKey) setSelectedResearchKey(selectedResearch.key);
+  }, [selectedResearch, selectedResearchKey]);
 
   useEffect(() => {
     setPersonalNote(watchlist.find((item) => item.symbol === selectedResearch?.code)?.note ?? "");
@@ -418,6 +438,44 @@ export default function Home() {
     });
   };
 
+  const selectResearchLens = (lens: ResearchLens | "Tümü") => {
+    setResearchLens(lens);
+    const matches = filterWorkspaceRecords(workspaceRecords, lens, researchSearch);
+    setSelectedResearchKey(matches[0]?.key ?? "");
+    toast.message(lens === "Tümü" ? `${matches.length} arşiv araştırma notu gösteriliyor.` : `${lens} merceğinde ${matches.length} arşiv araştırma notu gösteriliyor.`);
+  };
+
+  const runTechnicalScan = async () => {
+    if (!selectedTechnicalModels.length) {
+      toast.message("Önce en az bir teknik model seçin.");
+      return;
+    }
+    const symbol = (technicalSearch || selectedResearch?.code || "").trim().toLocaleUpperCase("tr-TR");
+    if (!symbol) {
+      toast.message("Tarama için bir BIST sembolü girin veya araştırma kartından aktarın.");
+      return;
+    }
+    setIsTechnicalScanning(true);
+    setBistOhlcvResponse(null);
+    setLastTechnicalRunAt(new Date().toISOString());
+    try {
+      const response = await fetch(`/api/bist-ohlcv?symbol=${encodeURIComponent(symbol)}`);
+      const payload = await response.json() as BistOhlcvResponse;
+      setBistOhlcvResponse(payload);
+      if (!response.ok || payload.state !== "READY" || !payload.data) {
+        toast.message(payload.detail || "Teknik veri kaynağı kullanılabilir sonuç döndürmedi.");
+        return;
+      }
+      setTechnicalSearch(payload.data.symbol);
+      toast.success(`${payload.data.symbol} için ${payload.data.bars.length} adet 15 dakikalık bar alındı.`);
+    } catch {
+      setBistOhlcvResponse({ state: "ERROR", detail: "Teknik veri isteği tamamlanamadı. Ağ ve sağlayıcı durumunu tekrar deneyin.", checkedAt: new Date().toISOString(), data: null });
+      toast.error("Teknik veri isteği tamamlanamadı.");
+    } finally {
+      setIsTechnicalScanning(false);
+    }
+  };
+
   const exportScannerCsv = () => {
     if (!selectedTechnicalModels.length) {
       toast.message("Önce en az bir teknik model seçin.");
@@ -495,8 +553,10 @@ export default function Home() {
             </div>
 
             <div className="mt-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Tarama türü">
-              {(["Tümü", "Kalite 100", "Bebek V2", "Proje"] as const).map((lens) => <button key={lens} onClick={() => setResearchLens(lens)} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${researchLens === lens ? "border-[#8ee19b]/45 bg-[#8ee19b]/12 text-[#b7efbf]" : "border-white/10 bg-white/[.035] text-[#aeb7ae] hover:border-white/25 hover:text-white"}`}>{lens === "Tümü" ? "Tüm çalışma notları" : lens}</button>)}
+              {(["Tümü", "Kalite 100", "Bebek V2", "Proje"] as const).map((lens) => <button key={lens} onClick={() => selectResearchLens(lens)} aria-pressed={researchLens === lens} className={`whitespace-nowrap rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${researchLens === lens ? "border-[#8ee19b]/45 bg-[#8ee19b]/12 text-[#b7efbf]" : "border-white/10 bg-white/[.035] text-[#aeb7ae] hover:border-white/25 hover:text-white"}`}>{lens === "Tümü" ? "Tüm arşiv notları" : lens}</button>)}
             </div>
+
+            <div aria-live="polite" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.045] px-4 py-3 text-xs"><span className="text-[#c6dce9]"><b className="text-white">Arşiv filtresi etkin:</b> {researchLens} · {filteredResearch.length} kayıt</span><span className="mono text-[10px] text-[#9cb9ce]">CANLI TARAMA SONUCU DEĞİL</span></div>
 
             <div className="data-rail mt-6 grid gap-4 px-4 py-4 lg:grid-cols-[170px_minmax(0,1fr)]">
               <div><p className="data-label">Bebek hisse V1 filtresi</p><p className="mt-2 text-xs leading-5 text-[#c9d1c9]">Kural seti görünürdür; her uygulamada veri tarihi ve finansal dönem kaydedilmelidir.</p></div>
@@ -505,10 +565,10 @@ export default function Home() {
 
             <div className="mt-8 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
               <div className="grid gap-3 md:grid-cols-2">
-                {filteredResearch.length ? filteredResearch.map((record) => <button key={`${record.lens}-${record.code}`} onClick={() => setSelectedResearchCode(record.code)} className={`group rounded-2xl border p-5 text-left transition ${selectedResearchCode === record.code ? "border-[#8ee19b]/45 bg-[#8ee19b]/[.09] shadow-[0_0_0_1px_rgba(142,225,155,.08)]" : "border-white/12 bg-[#161b18] hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a201d]"}`}>
+                {filteredResearch.length ? filteredResearch.map((record) => <button key={record.key} onClick={() => setSelectedResearchKey(record.key)} aria-pressed={selectedResearchKey === record.key} className={`group rounded-2xl border p-5 text-left transition ${selectedResearchKey === record.key ? "border-[#8ee19b]/45 bg-[#8ee19b]/[.09] shadow-[0_0_0_1px_rgba(142,225,155,.08)]" : "border-white/12 bg-[#161b18] hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#1a201d]"}`}>
                   <div className="flex items-start justify-between gap-3"><div><p className="mono text-lg tracking-[.08em] text-white">{record.code}</p><p className="mt-1 text-[11px] text-[#8ee19b]">{record.lens}</p></div>{typeof record.score === "number" ? <div className="rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-right"><p className="mono text-sm text-white">{record.score}</p><p className="text-[8px] uppercase tracking-[.12em] text-[#8f9a8f]">/100 not</p></div> : <Layers3 className="h-5 w-5 text-[#8ab5e3]" />}</div>
                   <p className="mt-5 min-h-[40px] text-xs leading-5 text-[#c7cec7]">{record.thesis}</p>
-                  <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-3"><ResearchStateBadge state={record.dataState}/><ChevronRight className={`h-4 w-4 shrink-0 text-[#8ee19b] transition-transform ${selectedResearchCode === record.code ? "rotate-90" : "group-hover:translate-x-1"}`} /></div>
+                  <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-3"><ResearchStateBadge state={record.dataState}/><ChevronRight className={`h-4 w-4 shrink-0 text-[#8ee19b] transition-transform ${selectedResearchKey === record.key ? "rotate-90" : "group-hover:translate-x-1"}`} /></div>
                 </button>) : <div className="rounded-2xl border border-dashed border-white/15 bg-white/[.025] p-10 text-center md:col-span-2"><Search className="mx-auto h-6 w-6 text-[#6f796f]"/><p className="mt-3 text-sm text-[#bdc5bd]">Bu mercekte eşleşen çalışma notu yok.</p></div>}
               </div>
 
@@ -518,7 +578,7 @@ export default function Home() {
                 <div className="mt-5 grid grid-cols-2 gap-2">{selectedResearch.metrics.map((metric) => <div key={metric.label} className="rounded-xl border border-white/10 bg-black/15 p-3"><p className="text-[10px] leading-4 text-[#9aa59a]">{metric.label}</p><p className="mono mt-1 text-sm text-white">{metric.value}</p></div>)}</div>
                 <div className="mt-5 border-t border-white/10 pt-4"><p className="data-label">Kriter kanıtı</p><div className="mt-3 grid grid-cols-2 gap-2">{recordCriteria(selectedResearch).map(([label, state]) => <div key={label} className="rounded-lg border border-white/8 bg-white/[.025] px-2.5 py-2"><p className="text-[9px] text-[#a7b0a7]">{label}</p><p className={`mt-1 text-[10px] ${state.includes("TBD") ? "text-[#d9c27d]" : "text-[#b6c2b6]"}`}>{state}</p></div>)}</div></div>
                 <div className="mt-5 border-t border-white/10 pt-4"><ResearchStateBadge state={selectedResearch.dataState}/><p className="mt-3 text-xs leading-5 text-[#d5b278]"><span className="font-semibold text-[#ead38e]">Kontrol notu: </span>{selectedResearch.risk}</p></div>
-                <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-4"><a href="#model-masasi" className="rounded-lg border border-[#8ee19b]/25 bg-[#8ee19b]/[.07] px-2.5 py-2 text-[10px] font-semibold text-[#b7efbf] transition hover:bg-[#8ee19b]/15">Teknik modele bağla →</a><a href="#piyasalar" className="rounded-lg border border-white/10 bg-white/[.025] px-2.5 py-2 text-[10px] font-semibold text-[#cdd5cd] transition hover:bg-white/[.08]">Piyasa bağlamı →</a></div>
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-white/10 pt-4"><a href="#model-masasi" onClick={() => setTechnicalSearch(selectedResearch.code)} className="rounded-lg border border-[#8ee19b]/25 bg-[#8ee19b]/[.07] px-2.5 py-2 text-[10px] font-semibold text-[#b7efbf] transition hover:bg-[#8ee19b]/15">Teknik modele bağla →</a><a href="#piyasalar" className="rounded-lg border border-white/10 bg-white/[.025] px-2.5 py-2 text-[10px] font-semibold text-[#cdd5cd] transition hover:bg-white/[.08]">Piyasa bağlamı →</a></div>
                 <p className="mt-5 border-t border-white/10 pt-4 text-[10px] leading-4 text-[#8e998e]">Bu kartlar kullanıcının paylaştığı tarihsiz çalışma notlarından oluşturulmuştur. Güncel kaynak/raporlama dönemi bağlanana kadar tarama sonucu veya yatırım önerisi değildir.</p>
               </aside>}
             </div>
@@ -546,11 +606,12 @@ export default function Home() {
             </div>
 
             <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
-              <article className="rounded-2xl border border-white/12 bg-[#101411] p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label">Teknik sonuç çizelgesi</p><h3 className="serif-title mt-2 text-3xl text-white">OHLCV doğrulaması bekleniyor</h3></div><button onClick={exportScannerCsv} className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[.035] px-3.5 py-2.5 text-xs font-semibold text-[#d7ddd7] transition hover:bg-white/10"><Download size={15}/> CSV yapısı</button></div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><label className="relative grow"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7f8a80]"/><input value={technicalSearch} onChange={(event) => setTechnicalSearch(event.target.value.toLocaleUpperCase("tr-TR"))} placeholder="Sembol ara (veri bağlandığında)" className="h-10 w-full rounded-xl border border-white/12 bg-[#161b18] pl-8 pr-3 text-xs text-white outline-none placeholder:text-[#718071] focus:border-[#8ee19b]/45" /></label><select value={technicalSort} onChange={(event) => setTechnicalSort(event.target.value as typeof technicalSort)} className="h-10 rounded-xl border border-white/12 bg-[#161b18] px-3 text-xs text-[#d7ddd7] outline-none focus:border-[#8ee19b]/45"><option value="match">Model uyumu</option><option value="symbol">Sembol</option><option value="observed">Gözlem zamanı</option></select></div><div className="mt-4 overflow-hidden rounded-xl border border-white/10"><div className="grid grid-cols-[1fr_1.2fr_.9fr] gap-3 bg-white/[.035] px-3 py-2.5 text-[9px] uppercase tracking-[.1em] text-[#8d978d] sm:grid-cols-[.7fr_1fr_1.2fr_.8fr]"><span>Sembol</span><span>Model</span><span className="hidden sm:block">Kaynak / gözlem</span><span className="text-right">Durum</span></div><div className="px-4 py-7 text-center"><p className="text-xs font-semibold text-[#d4e5f2]">Henüz yayımlanabilir teknik sonuç yok.</p><p className="mx-auto mt-2 max-w-[500px] text-[11px] leading-5 text-[#9eb2c1]">{technicalSearch ? `${technicalSearch} için arama kaydı bulunamadı; BIST OHLCV evreni henüz bağlı değil.` : "Lisanslı sağlayıcı bağlandığında satırlar; sembol, seçili model, kaynak URL’si, bar kapanışı, gözlem zamanı, gecikme ve eşleşme durumuyla burada sıralanır."}</p></div></div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{selectedTechnicalModels.length ? selectedTechnicalModels.map((id) => <span key={id} className="rounded-lg border border-[#8ee19b]/25 bg-[#8ee19b]/[.08] px-2.5 py-1.5 text-[10px] font-semibold text-[#b7efbf]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>) : <span className="text-xs text-[#929d92]">Karşılaştırmak için model seçin.</span>}</div><span className="mono text-[9px] text-[#7d897d]">SIRALAMA · {technicalSort === "match" ? "MODEL UYUMU" : technicalSort === "symbol" ? "SEMBOL" : "GÖZLEM ZAMANI"}</span></div></article>
+              <article className="rounded-2xl border border-white/12 bg-[#101411] p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label">Teknik sonuç çizelgesi</p><h3 className="serif-title mt-2 text-3xl text-white">{technicalRunState.title}</h3></div><div className="flex flex-wrap gap-2"><button onClick={runTechnicalScan} className="inline-flex items-center gap-2 rounded-xl border border-[#8ee19b]/35 bg-[#8ee19b]/[.08] px-3.5 py-2.5 text-xs font-semibold text-[#b7efbf] transition hover:bg-[#8ee19b]/15"><Activity size={15}/> Taramayı çalıştır</button><button onClick={exportScannerCsv} className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/[.035] px-3.5 py-2.5 text-xs font-semibold text-[#d7ddd7] transition hover:bg-white/10"><Download size={15}/> CSV yapısı</button></div></div><div className="mt-5 flex flex-col gap-2 sm:flex-row"><label className="relative grow"><Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7f8a80]"/><input value={technicalSearch} onChange={(event) => setTechnicalSearch(event.target.value.toLocaleUpperCase("tr-TR"))} placeholder="Sembol ara veya arşiv kartından aktar" className="h-10 w-full rounded-xl border border-white/12 bg-[#161b18] pl-8 pr-3 text-xs text-white outline-none placeholder:text-[#718071] focus:border-[#8ee19b]/45" /></label><select value={technicalSort} onChange={(event) => setTechnicalSort(event.target.value as typeof technicalSort)} className="h-10 rounded-xl border border-white/12 bg-[#161b18] px-3 text-xs text-[#d7ddd7] outline-none focus:border-[#8ee19b]/45"><option value="match">Model uyumu</option><option value="symbol">Sembol</option><option value="observed">Gözlem zamanı</option></select></div><div aria-live="polite" className="mt-4 overflow-hidden rounded-xl border border-white/10"><div className="grid grid-cols-[1fr_1.2fr_.9fr] gap-3 bg-white/[.035] px-3 py-2.5 text-[9px] uppercase tracking-[.1em] text-[#8d978d] sm:grid-cols-[.7fr_1fr_1.2fr_.8fr]"><span>Sembol</span><span>Model</span><span className="hidden sm:block">Kaynak / gözlem</span><span className="text-right">Durum</span></div><div className="px-4 py-7 text-center"><p className={`text-xs font-semibold ${technicalRunState.tone === "blocked" ? "text-[#ead38e]" : "text-[#d4e5f2]"}`}>{technicalRunState.title}</p><p className="mx-auto mt-2 max-w-[560px] text-[11px] leading-5 text-[#9eb2c1]">{technicalRunState.detail}</p>{lastTechnicalRunAt && <p className="mono mt-3 text-[9px] text-[#7d97a8]">SON ÇALIŞTIRMA İSTEĞİ · {formatSourceTime(lastTechnicalRunAt)}</p>}</div></div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap gap-2">{selectedTechnicalModels.length ? selectedTechnicalModels.map((id) => <span key={id} className="rounded-lg border border-[#8ee19b]/25 bg-[#8ee19b]/[.08] px-2.5 py-1.5 text-[10px] font-semibold text-[#b7efbf]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>) : <span className="text-xs text-[#929d92]">Karşılaştırmak için model seçin.</span>}</div><span className="mono text-[9px] text-[#7d897d]">SIRALAMA · {technicalSort === "match" ? "MODEL UYUMU" : technicalSort === "symbol" ? "SEMBOL" : "GÖZLEM ZAMANI"}</span></div></article>
               <article className="rounded-2xl border border-[#d9c27d]/20 bg-[#17150f] p-6"><p className="data-label text-[#ead38e]">Sonuç yayın protokolü</p><div className="mt-5 space-y-3 text-xs leading-5 text-[#c8c2ad]"><p><span className="font-semibold text-white">01 · Kaynak</span> Sağlayıcı adı ve kaynak URL’si kaydedilir.</p><p><span className="font-semibold text-white">02 · Zaman</span> Bar kapanışı, gözlem anı ve veri gecikmesi ayrı yazılır.</p><p><span className="font-semibold text-white">03 · Hesap</span> Model parametreleri her sonuçla birlikte gösterilir.</p><p><span className="font-semibold text-white">04 · Sınır</span> Sonuç teknik araştırma bağlamıdır; kişisel öneri değildir.</p></div></article>
             </div>
-            <div className="mt-4 rounded-2xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.045] p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label text-[#b8d8ef]">Favori sembol · teknik bağlam</p><h3 className="mono mt-2 text-2xl tracking-[.08em] text-white">{isOnWatchlist && selectedResearch ? selectedResearch.code : "FAVORİ SEÇİLMEDİ"}</h3></div><span className={`rounded-md border px-2 py-1 mono text-[9px] ${isOnWatchlist ? "border-[#8ee19b]/25 bg-[#8ee19b]/[.08] text-[#b7efbf]" : "border-white/10 bg-white/[.03] text-[#aeb8ae]"}`}>{isOnWatchlist ? "CİHAZ FAVORİSİ" : "FAVORİ BEKLER"}</span></div>{isOnWatchlist && selectedResearch ? <><p className="mt-3 text-xs leading-5 text-[#c4d8e7]">{selectedResearch.code} için seçili model seti aşağıdadır. Tarihli BIST OHLCV gelmeden eşleşme, fiyat veya indikatör değeri gösterilmez.</p><div className="mt-4 flex flex-wrap gap-2">{selectedTechnicalModels.map((id) => <span key={id} className="rounded-lg border border-[#8ab5e3]/25 bg-[#0f1820] px-2.5 py-1.5 text-[10px] font-semibold text-[#c7e0f2]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>)}</div><div className="mt-4 grid gap-2 border-t border-[#8ab5e3]/15 pt-3 text-[10px] sm:grid-cols-3"><p className="text-[#9eb4c2]">Kaynak: <span className="text-white">{bistSource?.label ?? "Lisanslı OHLCV bekleniyor"}</span></p><p className="text-[#9eb4c2]">Gözlem: <span className="text-white">{formatSourceTime(bistSource?.observedAt ?? null)}</span></p><p className="text-[#9eb4c2]">Durum: <span className="text-[#ead38e]">SONUÇ YOK · VERİ BEKLER</span></p></div></> : <p className="mt-3 text-xs leading-5 text-[#9eb4c2]">Tarama veya araştırma alanından bir sembolü cihaz favorilerine eklediğinizde, teknik model bağlamı bu panelde ayrı izlenir.</p>}</div>
-            <div className="mt-4"><TechnicalChartPanel symbol={selectedResearch?.code ?? "SEMBOL"} bars={[]} sourceLabel={bistSource?.label ?? "BIST OHLCV adapteri · lisanslı kaynak bekleniyor"} sourceUrl={bistSource?.sourceUrl} observedAt={bistSource?.observedAt ?? null} lastSuccessfulAt={bistSource?.lastSuccessAt ?? null} delayMinutes={15} errorMessage={bistSource?.errorMessage ?? null} /></div>
+            {activeTechnicalData && <article className="mt-4 overflow-hidden rounded-2xl border border-[#8ee19b]/25 bg-[#101711] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="data-label text-[#b7efbf]">KAYNAKLI TEKNİK BULGULAR</p><h3 className="mono mt-2 text-xl tracking-[.08em] text-white">{activeTechnicalData.symbol} · {activeTechnicalData.interval}</h3></div><span className="rounded-md border border-[#8ee19b]/25 bg-[#8ee19b]/[.08] px-2 py-1 mono text-[9px] text-[#b7efbf]">{activeTechnicalData.bars.length} BAR</span></div><div className="mt-4 space-y-2">{technicalFindings.map((finding) => <div key={finding.modelId} className="rounded-xl border border-white/10 bg-black/15 p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-white">{finding.modelName}</p><p className="mt-1 text-[10px] leading-4 text-[#a9b4a9]">{finding.explanation}</p></div><span className={`mono rounded-md border px-2 py-1 text-[9px] ${finding.state === "MATCH" ? "border-[#8ee19b]/30 bg-[#8ee19b]/[.08] text-[#b7efbf]" : finding.state === "NO_MATCH" ? "border-white/15 text-[#c3cec3]" : "border-[#d9c27d]/30 text-[#ead38e]"}`}>{finding.state === "MATCH" ? "EŞLEŞTİ" : finding.state === "NO_MATCH" ? "EŞLEŞMEDİ" : "YETERSİZ VERİ"}</span></div><div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/8 pt-2 text-[9px] text-[#91a791]"><span>{activeTechnicalData.sourceLabel}</span><span>GÖZLEM · {formatSourceTime(activeTechnicalData.asOf)}</span><a href={activeTechnicalData.sourceUrl} target="_blank" rel="noreferrer" className="text-[#8ee19b] hover:underline">Kaynak URL</a></div></div>)}</div><p className="mt-4 text-[10px] leading-4 text-[#a9b9a9]">Bu ekran 15 dakikalık bar aralığını gösterir. Sağlayıcı gecikme değerini bu yanıtta belirtmediği için fiyatın gecikme süresi ayrıca iddia edilmez. Tarama çalışmasıdır, yatırım tavsiyesi değildir.</p></article>}
+            <div className="mt-4 rounded-2xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.045] p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="data-label text-[#b8d8ef]">Favori sembol · teknik bağlam</p><h3 className="mono mt-2 text-2xl tracking-[.08em] text-white">{isOnWatchlist && selectedResearch ? selectedResearch.code : "FAVORİ SEÇİLMEDİ"}</h3></div><span className={`rounded-md border px-2 py-1 mono text-[9px] ${isOnWatchlist ? "border-[#8ee19b]/25 bg-[#8ee19b]/[.08] text-[#b7efbf]" : "border-white/10 bg-white/[.03] text-[#aeb8ae]"}`}>{isOnWatchlist ? "CİHAZ FAVORİSİ" : "FAVORİ BEKLER"}</span></div>{isOnWatchlist && selectedResearch ? <><p className="mt-3 text-xs leading-5 text-[#c4d8e7]">{activeTechnicalData?.symbol === selectedResearch.code ? `${selectedResearch.code} için kaynaklı 15 dakikalık barlar üzerinde hesaplanan model seti aşağıdadır.` : `${selectedResearch.code} için seçili model seti aşağıdadır. Tarihli BIST OHLCV gelmeden eşleşme, fiyat veya indikatör değeri gösterilmez.`}</p><div className="mt-4 flex flex-wrap gap-2">{selectedTechnicalModels.map((id) => <span key={id} className="rounded-lg border border-[#8ab5e3]/25 bg-[#0f1820] px-2.5 py-1.5 text-[10px] font-semibold text-[#c7e0f2]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>)}</div><div className="mt-4 grid gap-2 border-t border-[#8ab5e3]/15 pt-3 text-[10px] sm:grid-cols-3"><p className="text-[#9eb4c2]">Kaynak: <span className="text-white">{activeTechnicalData?.sourceLabel ?? bistSource?.label ?? "BIST OHLCV bekleniyor"}</span></p><p className="text-[#9eb4c2]">Gözlem: <span className="text-white">{formatSourceTime(activeTechnicalData?.asOf ?? bistSource?.observedAt ?? null)}</span></p><p className="text-[#9eb4c2]">Durum: <span className={activeTechnicalData?.symbol === selectedResearch.code ? "text-[#b7efbf]" : "text-[#ead38e]"}>{activeTechnicalData?.symbol === selectedResearch.code ? "HESAPLANDI" : "SONUÇ YOK · VERİ BEKLER"}</span></p></div></> : <p className="mt-3 text-xs leading-5 text-[#9eb4c2]">Tarama veya araştırma alanından bir sembolü cihaz favorilerine eklediğinizde, teknik model bağlamı bu panelde ayrı izlenir.</p>}</div>
+            <div className="mt-4"><TechnicalChartPanel symbol={activeTechnicalData?.symbol ?? selectedResearch?.code ?? "SEMBOL"} bars={activeTechnicalData?.bars ?? []} sourceLabel={activeTechnicalData?.sourceLabel ?? bistSource?.label ?? "BIST OHLCV adapteri · kaynaklı bar bekleniyor"} sourceUrl={activeTechnicalData?.sourceUrl ?? bistSource?.sourceUrl} observedAt={activeTechnicalData?.asOf ?? bistSource?.observedAt ?? null} lastSuccessfulAt={activeTechnicalData?.asOf ?? bistSource?.lastSuccessAt ?? null} delayMinutes={activeTechnicalData?.delayMinutes ?? null} errorMessage={bistOhlcvResponse?.state === "ERROR" ? bistOhlcvResponse.detail : bistSource?.errorMessage ?? null} /></div>
           </div>
         </section>
 
@@ -584,7 +645,7 @@ export default function Home() {
               <div className="rounded-2xl border border-white/12 bg-[#161b18] p-6"><div className="flex items-center justify-between gap-4"><div><p className="data-label">İzleme listesi</p><p className="mt-2 text-sm font-semibold text-white">Bu cihazda {watchlist.length} kayıt</p></div><button onClick={isOnWatchlist ? () => removeFromWatchlist() : saveWatchlist} className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition ${isOnWatchlist ? "border-[#e5c982]/30 bg-[#e5c982]/10 text-[#ead38e]" : "border-[#8ee19b]/40 bg-[#8ee19b]/10 text-[#b7efbf]"}`}>{isOnWatchlist ? "Seçili kaydı çıkar" : "Seçili kaydı ekle"}</button></div>
                 <label className="mt-5 block"><span className="data-label">{selectedResearch?.code ?? "Seçili kayıt"} için not</span><textarea value={personalNote} onChange={(event) => setPersonalNote(event.target.value)} placeholder="Hangi belgeyi, dönemi veya riski takip edeceğinizi yazın…" className="mt-2 min-h-[92px] w-full resize-y rounded-xl border border-white/12 bg-black/15 p-3 text-xs leading-5 text-white outline-none placeholder:text-[#758075] focus:border-[#8ee19b]/45" /></label><button onClick={saveWatchlist} className="mt-3 text-xs font-semibold text-[#b7efbf] hover:text-white">Notu ve seçili kaydı kaydet →</button>
                 <div className="mt-5 rounded-xl border border-[#8ab5e3]/20 bg-[#8ab5e3]/[.05] p-3"><p className="data-label text-[#b8d8ef]">Bağlı çalışma alanları</p><div className="mt-2 flex flex-wrap gap-1.5">{selectedTechnicalModels.length ? selectedTechnicalModels.map((id) => <span key={id} className="rounded-md border border-[#8ab5e3]/20 px-2 py-1 text-[9px] text-[#c7e0f2]">{TECHNICAL_SCANNER_MODELS.find((model) => model.id === id)?.shortName}</span>) : <span className="text-[10px] text-[#93a9b9]">Teknik model seçilmedi.</span>}</div><div className="mt-3 flex flex-wrap gap-2"><a href="#model-masasi" className="text-[10px] font-semibold text-[#b7efbf] hover:text-white">Teknik sonucu aç →</a><a href="#piyasalar" className="text-[10px] font-semibold text-[#c7e0f2] hover:text-white">Piyasa kartlarını aç →</a></div><p className="mt-2 text-[9px] leading-4 text-[#8ea4b3]">Seçili modeller bu oturumdaki analiz bağlamıdır; cihaz yedeğinde saklanan kişisel kayıt yalnızca sembol ve nottur.</p></div>
-                <div className="mt-4 border-t border-white/10 pt-4">{watchlist.length ? <div className="space-y-2">{watchlist.map((item) => <div key={item.symbol} className="flex items-start justify-between gap-3 rounded-xl border border-white/8 bg-white/[.025] px-3 py-3"><button onClick={() => setSelectedResearchCode(item.symbol)} className="text-left"><p className="mono text-sm text-white">{item.symbol}</p><p className="mt-1 line-clamp-1 text-[10px] text-[#9da89d]">{item.note || "Not eklenmedi"}</p></button><button onClick={() => removeFromWatchlist(item.symbol)} aria-label={`${item.symbol} kaydını çıkar`} className="rounded-md p-1.5 text-[#9fa99f] transition hover:bg-white/10 hover:text-white"><X size={14}/></button></div>)}</div> : <div className="rounded-xl border border-dashed border-white/15 bg-white/[.02] p-5 text-center"><Layers3 className="mx-auto h-5 w-5 text-[#788478]"/><p className="mt-2 text-xs text-[#aeb7ae]">Henüz kişisel izleme kaydı yok.</p></div>}</div>
+                <div className="mt-4 border-t border-white/10 pt-4">{watchlist.length ? <div className="space-y-2">{watchlist.map((item) => <div key={item.symbol} className="flex items-start justify-between gap-3 rounded-xl border border-white/8 bg-white/[.025] px-3 py-3"><button onClick={() => { setResearchLens("Tümü"); setResearchSearch(""); setSelectedResearchKey(workspaceRecords.find((record) => record.code === item.symbol)?.key ?? ""); }} className="text-left"><p className="mono text-sm text-white">{item.symbol}</p><p className="mt-1 line-clamp-1 text-[10px] text-[#9da89d]">{item.note || "Not eklenmedi"}</p></button><button onClick={() => removeFromWatchlist(item.symbol)} aria-label={`${item.symbol} kaydını çıkar`} className="rounded-md p-1.5 text-[#9fa99f] transition hover:bg-white/10 hover:text-white"><X size={14}/></button></div>)}</div> : <div className="rounded-xl border border-dashed border-white/15 bg-white/[.02] p-5 text-center"><Layers3 className="mx-auto h-5 w-5 text-[#788478]"/><p className="mt-2 text-xs text-[#aeb7ae]">Henüz kişisel izleme kaydı yok.</p></div>}</div>
                 <p className="mt-4 text-[10px] leading-4 text-[#7e897e]">Bu aşamada kayıtlar yalnızca bu tarayıcının yerel saklama alanında tutulur. Ortak cihazlarda kişisel not saklamayın.</p></div>
 
               <div className="grid gap-4"><div className="rounded-2xl border border-white/12 bg-[#161b18] p-6"><div className="flex items-center justify-between"><div><p className="data-label">Uyarı tercihleri</p><p className="mt-2 text-sm font-semibold text-white">Kaynak olayı temelli, fiyat hedefi değil</p></div><CircleAlert className="h-5 w-5 text-[#d9c27d]"/></div><div className="mt-5 space-y-3">{[["sourceStatusChanges", "Kaynak durumu değişirse", "BIST/KAP adapteri hata, gecikme veya hazır durumuna geçerse"], ["verifiedCatalysts", "Doğrulanmış katalizör olayı", "Yalnızca lisanslı KAP akışı veya tarihli kaynak belgesi bağlandığında"], ["inAppEnabled", "Araştırma ekranı uyarıları", "Uyarıları bu cihazdaki araştırma alanında tut"]].map(([key, title, detail]) => <label key={key} className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-white/8 bg-white/[.025] p-3"><span><span className="block text-xs font-semibold text-[#e1e6e1]">{title}</span><span className="mt-1 block text-[10px] leading-4 text-[#939e93]">{detail}</span></span><input type="checkbox" checked={alertPreferences[key as keyof DeviceAlertPreferences]} onChange={(event) => updateAlertPreference(key as keyof DeviceAlertPreferences, event.target.checked)} className="mt-1 h-4 w-4 accent-[#8ee19b]" /></label>)}</div></div>
